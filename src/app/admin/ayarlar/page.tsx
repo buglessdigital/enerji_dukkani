@@ -1,0 +1,258 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Save, Loader2, Info } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+
+export default function SettingsPage() {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [uploadingField, setUploadingField] = useState<string | null>(null)
+  
+  const [form, setForm] = useState({
+    site_name: '', company_name: '', email: '', support_email: '',
+    phone: '', phone_secondary: '', whatsapp_number: '', whatsapp_enabled: true,
+    address: '', map_embed_code: '', logo_url: '', dark_logo_url: '',
+    footer_logo_url: '', favicon_url: '',
+    instagram_url: '', linkedin_url: '', facebook_url: '', youtube_url: '', twitter_url: '',
+    shipping_free_threshold: '500', shipping_flat_rate: '0',
+    maintenance_mode: false,
+  })
+
+  useEffect(() => {
+    async function fetchSettings() {
+      const { data, error } = await supabase.from('site_settings').select('*').limit(1).single()
+      if (data) {
+        const sanitizedData = Object.fromEntries(
+          Object.entries(data).map(([key, val]) => [key, val === null ? '' : val])
+        )
+        setForm(prev => ({
+          ...prev,
+          ...sanitizedData,
+          shipping_free_threshold: data.shipping_free_threshold?.toString() || '0',
+          shipping_flat_rate: data.shipping_flat_rate?.toString() || '0',
+        }))
+      }
+      setLoading(false)
+    }
+    fetchSettings()
+  }, [])
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    const { name, value, type } = e.target
+    const checked = (e.target as HTMLInputElement).checked
+    setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>, fieldName: string) {
+    if (!e.target.files || e.target.files.length === 0) return
+    const file = e.target.files[0]
+    setUploadingField(fieldName)
+    
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${fieldName}-${Date.now()}.${fileExt}`
+      const filePath = `settings/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('slider_images')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('slider_images')
+        .getPublicUrl(filePath)
+
+      setForm(prev => ({ ...prev, [fieldName]: publicUrl }))
+    } catch (err: any) {
+      alert(`Yükleme hatası: ${err.message}`)
+    } finally {
+      setUploadingField(null)
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    setSuccess('')
+
+    const updates = {
+      ...form,
+      shipping_free_threshold: parseFloat(form.shipping_free_threshold) || 0,
+      shipping_flat_rate: parseFloat(form.shipping_flat_rate) || 0,
+    }
+
+    const { error: updateError } = await supabase.from('site_settings').update(updates).eq('id', (form as any).id)
+    
+    if (updateError) {
+      setError(updateError.message)
+    } else {
+      setSuccess('Ayarlar başarıyla güncellendi.')
+    }
+    setSaving(false)
+  }
+
+  if (loading) return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="h-8 w-48 skeleton rounded" />
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100"><div className="space-y-4">{[1,2,3,4].map(i => <div key={i} className="h-10 skeleton rounded" />)}</div></div>
+    </div>
+  )
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-neutral-900 font-heading">Genel Ayarlar</h1>
+        <p className="text-sm text-neutral-500 mt-1">Sitenizin temel bilgilerini, iletişim kanallarını ve operasyonel ayarlarını yönetin.</p>
+      </div>
+
+      {error && <div className="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">{error}</div>}
+      {success && <div className="p-4 bg-green-50 text-green-700 rounded-xl text-sm font-medium">{success}</div>}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        
+        {/* Basic Info */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
+          <h2 className="text-lg font-bold text-neutral-900">Temel Bilgiler</h2>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Site Adı</label><input type="text" name="site_name" value={form.site_name} onChange={handleChange} required className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Şirket Ünvanı</label><input type="text" name="company_name" value={form.company_name} onChange={handleChange} className="input" /></div>
+          </div>
+        </div>
+
+        {/* Contact Info */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
+          <h2 className="text-lg font-bold text-neutral-900">İletişim Bilgileri</h2>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Ana E-Posta</label><input type="email" name="email" value={form.email} onChange={handleChange} required className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Destek E-Posta (Opsiyonel)</label><input type="email" name="support_email" value={form.support_email} onChange={handleChange} className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Ana Telefon</label><input type="text" name="phone" value={form.phone} onChange={handleChange} required className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">İkinci Telefon (Opsiyonel)</label><input type="text" name="phone_secondary" value={form.phone_secondary} onChange={handleChange} className="input" /></div>
+            <div className="sm:col-span-2 space-y-1.5"><label className="text-sm font-medium text-neutral-700">Açık Adres</label><textarea name="address" value={form.address} onChange={handleChange} rows={3} className="input resize-y" /></div>
+            <div className="sm:col-span-2 space-y-1.5"><label className="text-sm font-medium text-neutral-700">Harita Embed Kodu (HTML)</label><textarea name="map_embed_code" value={form.map_embed_code} onChange={handleChange} rows={3} className="input resize-y font-mono text-xs" /></div>
+          </div>
+        </div>
+
+        {/* WhatsApp */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-neutral-900">WhatsApp Destek</h2>
+              <p className="text-xs text-neutral-500 mt-1">Sitenin sağ alt köşesindeki hızlı mesaj butonu</p>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer relative">
+              <input type="checkbox" name="whatsapp_enabled" checked={form.whatsapp_enabled} onChange={handleChange} className="sr-only peer" />
+              <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+            </label>
+          </div>
+          {form.whatsapp_enabled && (
+             <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">WhatsApp Numarası</label><input type="text" name="whatsapp_number" value={form.whatsapp_number} onChange={handleChange} className="input" placeholder="Örn: 905551234567 (Başında 0 olmadan)" /></div>
+          )}
+        </div>
+
+        {/* Social Media */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
+          <h2 className="text-lg font-bold text-neutral-900">Sosyal Medya Linkleri</h2>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Instagram URL</label><input type="url" name="instagram_url" value={form.instagram_url} onChange={handleChange} className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">LinkedIn URL</label><input type="url" name="linkedin_url" value={form.linkedin_url} onChange={handleChange} className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Facebook URL</label><input type="url" name="facebook_url" value={form.facebook_url} onChange={handleChange} className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">YouTube URL</label><input type="url" name="youtube_url" value={form.youtube_url} onChange={handleChange} className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Twitter (X) URL</label><input type="url" name="twitter_url" value={form.twitter_url} onChange={handleChange} className="input" /></div>
+          </div>
+        </div>
+
+        {/* Branding */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
+          <h2 className="text-lg font-bold text-neutral-900">Logo & Marka (URL veya Dosya Seçin)</h2>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-neutral-700">Site Logosu (Header)</label>
+              <div className="flex gap-2">
+                <input type="url" name="logo_url" value={form.logo_url} onChange={handleChange} className="input flex-1" />
+                <label className="btn btn-outline border-neutral-200 bg-white shrink-0 cursor-pointer">
+                  {uploadingField === 'logo_url' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Dosya Seç'}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'logo_url')} />
+                </label>
+              </div>
+              {form.logo_url && <img src={form.logo_url} alt="Logo" className="h-10 object-contain p-2 border border-neutral-100 rounded bg-neutral-50" />}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-neutral-700">Dark Logo</label>
+              <div className="flex gap-2">
+                <input type="url" name="dark_logo_url" value={form.dark_logo_url} onChange={handleChange} className="input flex-1" />
+                <label className="btn btn-outline border-neutral-200 bg-white shrink-0 cursor-pointer">
+                  {uploadingField === 'dark_logo_url' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Dosya Seç'}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'dark_logo_url')} />
+                </label>
+              </div>
+              {form.dark_logo_url && <img src={form.dark_logo_url} alt="Dark Logo" className="h-10 object-contain p-2 border border-neutral-100 rounded bg-neutral-900" />}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-neutral-700">Footer Logosu</label>
+              <div className="flex gap-2">
+                <input type="url" name="footer_logo_url" value={form.footer_logo_url} onChange={handleChange} className="input flex-1" />
+                <label className="btn btn-outline border-neutral-200 bg-white shrink-0 cursor-pointer">
+                  {uploadingField === 'footer_logo_url' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Dosya Seç'}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'footer_logo_url')} />
+                </label>
+              </div>
+              {form.footer_logo_url && <img src={form.footer_logo_url} alt="Footer Logo" className="h-10 object-contain p-2 border border-neutral-100 rounded bg-neutral-900" />}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-neutral-700">Favicon</label>
+              <div className="flex gap-2">
+                <input type="url" name="favicon_url" value={form.favicon_url} onChange={handleChange} className="input flex-1" />
+                <label className="btn btn-outline border-neutral-200 bg-white shrink-0 cursor-pointer">
+                  {uploadingField === 'favicon_url' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Dosya Seç'}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'favicon_url')} />
+                </label>
+              </div>
+              {form.favicon_url && <img src={form.favicon_url} alt="Favicon" className="h-10 object-contain p-2 border border-neutral-100 rounded bg-neutral-50" />}
+            </div>
+          </div>
+        </div>
+
+        {/* E-commerce Settings */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
+          <h2 className="text-lg font-bold text-neutral-900">E-Ticaret Operasyon</h2>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-neutral-700">Ücretsiz Kargo Limiti (₺)</label>
+              <input type="number" name="shipping_free_threshold" value={form.shipping_free_threshold} onChange={handleChange} className="input" min="0" step="0.01" />
+              <p className="text-xs text-neutral-500">Bu tutarın üzerindeki siparişlerde kargo ücretsiz olur.</p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-neutral-700">Standart Kargo Ücreti (₺)</label>
+              <input type="number" name="shipping_flat_rate" value={form.shipping_flat_rate} onChange={handleChange} className="input" min="0" step="0.01" />
+            </div>
+          </div>
+        </div>
+
+        {/* System */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-red-600">Bakım Modu</h2>
+              <p className="text-xs text-neutral-500 mt-1">Açıldığında site ziyaretçilere kapatılır, sadece adminler görebilir.</p>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer relative">
+              <input type="checkbox" name="maintenance_mode" checked={form.maintenance_mode} onChange={handleChange} className="sr-only peer" />
+              <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+            </label>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 sticky bottom-6 z-10">
+          <button type="submit" disabled={saving} className="btn btn-primary btn-lg shadow-lg">
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Kaydediliyor...</> : <><Save className="w-4 h-4" /> Tüm Ayarları Kaydet</>}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
