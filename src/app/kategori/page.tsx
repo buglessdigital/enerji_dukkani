@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Filter, ChevronDown, Check, ShoppingCart, Heart, Eye, ArrowUpDown, X, ImageIcon } from 'lucide-react'
+import { Filter, ChevronDown, Check, ShoppingCart, Heart, Eye, ArrowUpDown, X, ImageIcon, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/context/CartContext'
 import { useFavorites } from '@/context/FavoritesContext'
@@ -179,7 +179,7 @@ export default function AllCategoriesPage() {
                 </div>
               ) : sortedProducts.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center border border-neutral-100 border-dashed">
-                  <div className="text-4xl mb-4">🔍</div>
+                  <Search className="w-16 h-16 mx-auto mb-4 text-neutral-300" />
                   <h3 className="text-xl font-bold font-heading mb-2">Ürün Bulunamadı</h3>
                   <p className="text-neutral-500">Bu kategoriye ait ürün şu anda stoklarımızda bulunmamaktadır.</p>
                   <button onClick={() => setActiveCategory(null)} className="btn btn-outline mt-6">Tüm Ürünleri Gör</button>

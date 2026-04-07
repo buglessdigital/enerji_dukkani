@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Filter, ChevronDown, Check, ShoppingCart, Heart, Eye, ArrowLeft, X, ImageIcon } from 'lucide-react'
+import { Filter, ChevronDown, Check, ShoppingCart, Heart, Eye, ArrowLeft, X, ImageIcon, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/context/CartContext'
 import { useFavorites } from '@/context/FavoritesContext'
@@ -173,7 +173,7 @@ export default function CategoryDetailPage({ params }: { params: Promise<{ slug:
             </div>
           ) : sortedProducts.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-neutral-100 border-dashed">
-              <div className="text-4xl mb-4">🔍</div>
+              <Search className="w-16 h-16 mx-auto mb-4 text-neutral-300" />
               <h3 className="text-xl font-bold font-heading mb-2">Bu Kategoride Ürün Yok</h3>
               <p className="text-neutral-500">Bu kategoriye henüz bir ürün eklenmemiş gibi görünüyor.</p>
               <Link href="/kategori" className="btn btn-outline mt-6">Tüm Ürünleri Gör</Link>

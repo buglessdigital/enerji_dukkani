@@ -1,9 +1,10 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { supabase } from '@/lib/supabase'
 
 export interface CartItem {
-  id: string // cart item id (usually same as product id for simplicity, or unique if variations exist)
+  id: string
   product_id: string
   name: string
   slug: string
@@ -26,47 +27,70 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
+function getCartKey(userId: string | null) {
+  return userId ? `enerji_dukkani_cart_${userId}` : 'enerji_dukkani_cart_guest'
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([])
+  const [cartKey, setCartKey] = useState<string>('enerji_dukkani_cart_guest')
   const [isLoaded, setIsLoaded] = useState(false)
 
-  // Load from local storage
+  // Auth değişikliklerini dinle — kullanıcıya özel sepeti yükle/temizle
   useEffect(() => {
-    const saved = localStorage.getItem('enerji_dukkani_cart')
-    if (saved) {
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession()
+      const key = getCartKey(session?.user?.id ?? null)
+      setCartKey(key)
       try {
-        setCart(JSON.parse(saved))
-      } catch (e) {
-         console.error('Cart parse err:', e)
+        const saved = localStorage.getItem(key)
+        setCart(saved ? JSON.parse(saved) : [])
+      } catch {
+        setCart([])
       }
+      setIsLoaded(true)
     }
-    setIsLoaded(true)
+    init()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const key = getCartKey(session?.user?.id ?? null)
+      setCartKey(key)
+      setIsLoaded(false)
+      try {
+        const saved = localStorage.getItem(key)
+        setCart(saved ? JSON.parse(saved) : [])
+      } catch {
+        setCart([])
+      }
+      setIsLoaded(true)
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
-  // Save to local storage
+  // Sepeti localStorage'a kaydet
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem('enerji_dukkani_cart', JSON.stringify(cart))
+      localStorage.setItem(cartKey, JSON.stringify(cart))
     }
-  }, [cart, isLoaded])
+  }, [cart, isLoaded, cartKey])
 
   const addToCart = (product: any, quantity: number = 1) => {
     setCart((prev) => {
       const existing = prev.find(item => item.product_id === product.id)
       if (existing) {
-        return prev.map(item => 
-          item.product_id === product.id 
+        return prev.map(item =>
+          item.product_id === product.id
             ? { ...item, quantity: Math.min(item.quantity + quantity, item.stock_quantity) }
             : item
         )
       }
 
-      // get cover image
-      const cover = Array.isArray(product.product_images) 
-         ? product.product_images.find((i:any) => i.is_cover)?.url || product.product_images[0]?.url
-         : Array.isArray(product.images)
-            ? product.images.find((i:any) => i.is_cover)?.url || product.images[0]?.url
-            : ''
+      const cover = Array.isArray(product.product_images)
+        ? product.product_images.find((i: any) => i.is_cover)?.url || product.product_images[0]?.url
+        : Array.isArray(product.images)
+          ? product.images.find((i: any) => i.is_cover)?.url || product.images[0]?.url
+          : ''
 
       return [...prev, {
         id: product.id,
@@ -87,9 +111,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   const updateQuantity = (id: string, quantity: number) => {
-    if(quantity < 1) return
-    setCart(prev => prev.map(item => 
-       item.id === id ? { ...item, quantity: Math.min(quantity, item.stock_quantity) } : item
+    if (quantity < 1) return
+    setCart(prev => prev.map(item =>
+      item.id === id ? { ...item, quantity: Math.min(quantity, item.stock_quantity) } : item
     ))
   }
 

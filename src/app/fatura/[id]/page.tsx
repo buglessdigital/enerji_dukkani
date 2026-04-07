@@ -100,11 +100,7 @@ export default function FaturaPage() {
         {/* Header */}
         <header className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-neutral-100 pb-8 mb-8">
           <div>
-            {settings?.logo_url ? (
-               <img src={settings.logo_url} alt="Logo" className="h-14 w-auto mb-4" />
-            ) : (
-               <h1 className="text-3xl font-black font-heading tracking-tight mb-4">{settings?.site_name || 'Enerji Dükkanı'}</h1>
-            )}
+            <h1 className="text-3xl font-black font-heading tracking-tight mb-4">{settings?.site_name || 'Enerji Dükkanı'}</h1>
             
             <div className="space-y-1 text-sm text-neutral-500">
               {settings?.address && <p className="flex items-start gap-2"><MapPin className="w-4 h-4 mt-0.5 shrink-0" /> {settings.address}</p>}

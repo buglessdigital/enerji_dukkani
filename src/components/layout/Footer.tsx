@@ -40,23 +40,17 @@ export default function Footer() {
           {/* Column 1: Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2">
-              {settings?.footer_logo_url ? (
-                <img src={settings.footer_logo_url} alt={siteName} className="h-10 w-auto" />
-              ) : (
-                <>
-                  <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-                    <Zap className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <span className="block font-heading text-lg font-bold text-white leading-tight">
-                      {siteName}
-                    </span>
-                    <span className="block text-[10px] text-neutral-500 font-medium tracking-wider uppercase">
-                      Güneş Enerjisi Sistemleri
-                    </span>
-                  </div>
-                </>
-              )}
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <span className="block font-heading text-lg font-bold text-white leading-tight">
+                  {siteName}
+                </span>
+                <span className="block text-[10px] text-neutral-500 font-medium tracking-wider uppercase">
+                  Güneş Enerjisi Sistemleri
+                </span>
+              </div>
             </Link>
             <p className="text-sm text-neutral-400 leading-relaxed">
               Güneş enerjisi sistemleri, inverterler, akü çözümleri ve enerji

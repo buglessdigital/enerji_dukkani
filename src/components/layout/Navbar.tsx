@@ -170,15 +170,11 @@ export default function Navbar() {
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0" id="nav-logo">
-            {settings?.logo_url ? (
-              <img src={settings.logo_url} alt={settings.site_name} className="h-10 w-auto" />
-            ) : (
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white">
                   <path d="M13 2L4 14h7l-2 8 9-12h-7l2-8z" fill="currentColor" />
                 </svg>
               </div>
-            )}
             <div className="hidden sm:block">
               <span className="block font-heading text-lg font-bold text-neutral-900 leading-tight">
                 {settings?.site_name || 'Enerji Dükkanı'}

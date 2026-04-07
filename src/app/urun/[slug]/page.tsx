@@ -3,10 +3,11 @@
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import WhatsAppButton from '@/components/common/WhatsAppButton'
-import { Heart, ShoppingCart, Star, Check, AlertCircle, Shield, Truck, RefreshCw, ChevronRight, ImageIcon, Phone, MessageCircle } from 'lucide-react'
+import { Heart, ShoppingCart, Star, Check, AlertCircle, Shield, Truck, RefreshCw, ChevronRight, ImageIcon, SearchX, Zap } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Product } from '@/lib/types'
 import { useCart } from '@/context/CartContext'
@@ -23,6 +24,7 @@ function formatPrice(price: number) {
 export default function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const { addToCart } = useCart()
+  const router = useRouter()
   
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -93,11 +95,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
         }
       }
       
-      const { data: set } = await supabase.from('site_settings').select('whatsapp_number, contact_phone').single()
+      const { data: set } = await supabase.from('site_settings').select('whatsapp_number, phone').single()
       if (set) {
         setSiteSettings({
           whatsapp: set.whatsapp_number,
-          phone: set.contact_phone
+          phone: set.phone
         })
       }
 
@@ -162,7 +164,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
         <Navbar />
         <main className="pt-[104px] lg:pt-[140px] bg-neutral-50 pb-20">
           <div className="container-custom mt-20 text-center">
-            <div className="text-6xl mb-6">🔍</div>
+            <SearchX className="w-20 h-20 mx-auto mb-6 text-neutral-300" />
             <h1 className="text-2xl font-heading font-bold text-neutral-900 mb-3">Ürün Bulunamadı</h1>
             <p className="text-neutral-500 mb-8">Aradığınız ürün mevcut değil veya kaldırılmış olabilir.</p>
             <Link href="/" className="btn btn-primary">Ana Sayfaya Dön</Link>
@@ -184,10 +186,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
     <>
       <Navbar />
       
-      <main className="pt-[104px] lg:pt-[140px] bg-neutral-50 pb-28 md:pb-20">
-        
+      <main className="pt-[104px] lg:pt-[140px] bg-neutral-50 pb-24 md:pb-20">
+
         {/* Breadcrumb */}
-        <div className="container-custom py-4">
+        <div className="container-custom py-3 hidden sm:block">
           <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
             <Link href="/" className="hover:text-primary-600 transition-colors">Ana Sayfa</Link>
             <ChevronRight className="w-3 h-3" />
@@ -205,13 +207,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
         {/* Above the Fold - Product Details */}
         <div className="container-custom mt-2">
-          <div className="bg-white rounded-3xl shadow-sm border border-neutral-100 p-4 sm:p-6 lg:p-10">
-            <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
-              
+          <div className="bg-white rounded-none -mx-4 sm:mx-0 sm:rounded-3xl sm:shadow-sm sm:border sm:border-neutral-100 sm:p-6 lg:p-10">
+            <div className="flex flex-col lg:flex-row gap-0 sm:gap-10 lg:gap-16">
+
               {/* Left: Gallery */}
-              <div className="lg:w-5/12 flex-shrink-0 space-y-4">
+              <div className="lg:w-5/12 flex-shrink-0 space-y-3">
                 {/* Main Image */}
-                <div className="aspect-square bg-gradient-to-br from-neutral-100 to-neutral-50 rounded-2xl overflow-hidden border border-neutral-100 relative group cursor-zoom-in">
+                <div className="aspect-square bg-gradient-to-br from-neutral-100 to-neutral-50 sm:rounded-2xl overflow-hidden border-b sm:border border-neutral-100 relative group cursor-zoom-in">
                   {activeImg?.url ? (
                     <Image
                       src={activeImg.url}
@@ -238,12 +240,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                 
                 {/* Thumbnails */}
                 {images.length > 1 && (
-                  <div className="grid grid-cols-4 gap-3 md:gap-4">
+                  <div className="flex gap-2.5 overflow-x-auto px-4 sm:px-0 pb-1 sm:grid sm:grid-cols-5 sm:gap-3 scrollbar-hide">
                     {images.map((img, i) => (
                       <button
                         key={img.id}
                         onClick={() => setActiveImage(i)}
-                        className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                        className={`shrink-0 w-16 h-16 sm:w-auto sm:h-auto sm:aspect-square rounded-xl overflow-hidden border-2 transition-all ${
                           activeImage === i ? 'border-primary-500' : 'border-transparent hover:border-primary-200'
                         }`}
                       >
@@ -253,7 +255,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                             alt={img.alt_text || `Ürün görsel ${i + 1}`}
                             fill
                             className="object-contain p-1"
-                            sizes="100px"
+                            sizes="80px"
                           />
                         </div>
                       </button>
@@ -263,7 +265,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
               </div>
 
               {/* Right: Info & Actions */}
-              <div className="lg:w-7/12 flex flex-col pt-2 lg:pt-0">
+              <div className="lg:w-7/12 flex flex-col pt-4 px-4 sm:px-0 sm:pt-2 lg:pt-0">
                 
                 <div className="flex items-center justify-between mb-3">
                   {product.brand && (
@@ -369,48 +371,102 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col sm:flex-row gap-4 mt-auto">
-                  {/* Quantity */}
-                  <div className="flex items-center justify-between bg-neutral-100 rounded-xl p-1.5 w-full sm:w-32 border border-neutral-200">
-                    <button 
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-10 h-10 flex items-center justify-center text-neutral-600 hover:text-primary-600 hover:bg-white rounded-lg transition-colors"
+                <div className="flex flex-col gap-3 mt-auto">
+                  {/* Quantity + Favorite icon */}
+                  <div className="hidden sm:flex items-center gap-3">
+                    <div className="flex items-center justify-between bg-neutral-100 rounded-xl p-1.5 w-36 border border-neutral-200 shrink-0">
+                      <button
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        className="w-10 h-10 flex items-center justify-center text-neutral-600 hover:text-primary-600 hover:bg-white rounded-lg transition-colors"
+                      >
+                        -
+                      </button>
+                      <span className="font-bold text-neutral-900 w-8 text-center">{quantity}</span>
+                      <button
+                        onClick={() => setQuantity(quantity + 1)}
+                        className="w-10 h-10 flex items-center justify-center text-neutral-600 hover:text-primary-600 hover:bg-white rounded-lg transition-colors"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setIsFavorite(!isFavorite)}
+                      title={isFavorite ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+                      className={`w-12 h-12 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
+                        isFavorite
+                          ? 'border-red-200 bg-red-50 text-red-500'
+                          : 'border-neutral-200 bg-white text-neutral-400 hover:border-red-200 hover:text-red-500'
+                      }`}
                     >
-                      -
-                    </button>
-                    <span className="font-bold text-neutral-900 w-8 text-center">{quantity}</span>
-                    <button 
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="w-10 h-10 flex items-center justify-center text-neutral-600 hover:text-primary-600 hover:bg-white rounded-lg transition-colors"
-                    >
-                      +
+                      <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
                     </button>
                   </div>
-                  
-                  {/* Add to cart */}
-                  <button 
-                    onClick={() => {
-                      addToCart(product, quantity)
-                      alert('Ürün sepete eklendi!')
-                    }}
-                    className="btn btn-primary btn-lg flex-1 group" 
-                    disabled={product.stock_quantity === 0}
-                  >
-                    <ShoppingCart className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" />
-                    Sepete Ekle
-                  </button>
 
-                  {/* Favorite */}
-                  <button 
-                    onClick={() => setIsFavorite(!isFavorite)}
-                    className={`w-14 h-[52px] rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-                      isFavorite 
-                        ? 'border-red-200 bg-red-50 text-red-500' 
-                        : 'border-neutral-200 bg-white text-neutral-500 hover:border-red-200 hover:text-red-500'
-                    }`}
+                  {/* Sepete Ekle + Hemen Al — sadece desktop */}
+                  <div className="hidden sm:flex gap-3">
+                    <button
+                      onClick={() => {
+                        addToCart(product, quantity)
+                        alert('Ürün sepete eklendi!')
+                      }}
+                      disabled={product.stock_quantity === 0}
+                      className="btn btn-outline btn-lg flex-1 group border-primary-600 text-primary-600 hover:bg-primary-50"
+                    >
+                      <ShoppingCart className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" />
+                      Sepete Ekle
+                    </button>
+                    <button
+                      onClick={() => {
+                        addToCart(product, quantity)
+                        router.push('/odeme')
+                      }}
+                      disabled={product.stock_quantity === 0}
+                      className="btn btn-primary btn-lg flex-1 group"
+                    >
+                      <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      Hemen Al
+                    </button>
+                  </div>
+
+                  {/* Mobile: Favori + WhatsApp yan yana */}
+                  <div className="flex sm:hidden gap-3">
+                    <button
+                      onClick={() => setIsFavorite(!isFavorite)}
+                      className={`h-12 w-12 shrink-0 rounded-xl border flex items-center justify-center transition-all ${
+                        isFavorite ? 'border-red-200 bg-red-50 text-red-500' : 'border-neutral-200 bg-white text-neutral-400'
+                      }`}
+                    >
+                      <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+                    </button>
+                    <a
+                      href={`https://wa.me/${(siteSettings?.whatsapp || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Merhaba, aşağıdaki ürün hakkında bilgi almak istiyorum:\n\n*${product.name}*\n${typeof window !== 'undefined' ? window.location.href : ''}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex flex-1 items-center justify-center gap-2 h-12 rounded-xl font-semibold text-sm text-white"
+                      style={{ backgroundColor: '#25D366' }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" className="w-4 h-4 fill-white shrink-0">
+                        <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7 .9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/>
+                      </svg>
+                      WhatsApp ile Sipariş Ver
+                    </a>
+                  </div>
+
+                  {/* Desktop: WhatsApp ile Sipariş Ver */}
+                  <a
+                    href={`https://wa.me/${(siteSettings?.whatsapp || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                      `Merhaba, aşağıdaki ürün hakkında bilgi almak istiyorum:\n\n*${product.name}*\n${typeof window !== 'undefined' ? window.location.href : ''}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden sm:flex items-center justify-center gap-2.5 w-full h-[52px] rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 text-white"
+                    style={{ backgroundColor: '#25D366' }}
                   >
-                    <Heart className={`w-6 h-6 ${isFavorite ? 'fill-current' : ''}`} />
-                  </button>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" className="w-5 h-5 fill-white shrink-0">
+                      <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7 .9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/>
+                    </svg>
+                    WhatsApp ile Sipariş Ver
+                  </a>
                 </div>
 
               </div>
@@ -535,24 +591,30 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
       </main>
 
-      {/* Mobile Sticky Contact Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-100 p-3 flex items-center justify-between gap-3 z-50 md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
-        <a 
-          href={`https://wa.me/${siteSettings?.whatsapp?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Merhaba, ' + (product?.name || 'ürün') + ' hakkında bilgi almak istiyorum.')}`}
-          target="_blank"
-          rel="noreferrer"
-          className="flex-1 flex items-center justify-center gap-2 bg-[#25D366] text-white py-3 px-4 rounded-xl font-bold text-sm hover:bg-[#128C7E] transition-colors"
+      {/* Mobile Sticky Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-100 px-4 py-3 flex items-center gap-3 z-50 sm:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        <div className="flex flex-col shrink-0">
+          <span className="text-[11px] text-neutral-400 font-medium">Fiyat</span>
+          <span className="text-base font-extrabold text-primary-700 font-heading leading-tight">
+            {formatPrice(product.sale_price || product.price)}
+          </span>
+        </div>
+        <button
+          onClick={() => { addToCart(product, quantity); alert('Ürün sepete eklendi!') }}
+          disabled={product.stock_quantity === 0}
+          className="flex-1 flex items-center justify-center gap-2 border-2 border-primary-600 text-primary-600 font-bold text-sm py-3 rounded-xl transition-colors active:bg-primary-50 disabled:opacity-40"
         >
-          <MessageCircle className="w-5 h-5" />
-          WhatsApp
-        </a>
-        <a 
-          href={`tel:${siteSettings?.phone?.replace(/[^0-9+]/g, '')}`} 
-          className="flex-1 flex items-center justify-center gap-2 bg-neutral-900 text-white py-3 px-4 rounded-xl font-bold text-sm hover:bg-neutral-800 transition-colors"
+          <ShoppingCart className="w-4 h-4" />
+          Sepete Ekle
+        </button>
+        <button
+          onClick={() => { addToCart(product, quantity); router.push('/odeme') }}
+          disabled={product.stock_quantity === 0}
+          className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white font-bold text-sm py-3 rounded-xl shadow-md shadow-primary-200 transition-colors active:bg-primary-700 disabled:opacity-40"
         >
-          <Phone className="w-5 h-5 fill-current" />
-          Bizi Arayın
-        </a>
+          <Zap className="w-4 h-4" />
+          Hemen Al
+        </button>
       </div>
 
       <Footer />

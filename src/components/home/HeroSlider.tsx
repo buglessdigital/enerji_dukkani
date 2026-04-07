@@ -135,10 +135,18 @@ export default function HeroSlider() {
           }`}
         >
           {s.image_url ? (
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${s.image_url})` }}
-            />
+            <>
+              {/* Desktop image */}
+              <div
+                className="absolute inset-0 bg-cover bg-center hidden sm:block"
+                style={{ backgroundImage: `url(${s.image_url})` }}
+              />
+              {/* Mobile image — fallback to desktop if no mobile_image_url */}
+              <div
+                className="absolute inset-0 bg-cover bg-center sm:hidden"
+                style={{ backgroundImage: `url(${s.mobile_image_url || s.image_url})` }}
+              />
+            </>
           ) : (
             <div className={`absolute inset-0 ${gradients[i % gradients.length]}`} />
           )}

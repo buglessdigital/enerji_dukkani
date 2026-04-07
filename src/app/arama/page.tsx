@@ -123,7 +123,7 @@ function SearchResults() {
             </div>
           ) : !query.trim() ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-neutral-100 border-dashed max-w-2xl mx-auto">
-              <div className="text-4xl mb-4 opacity-50">🔍</div>
+              <SearchIcon className="w-16 h-16 mx-auto mb-4 text-neutral-300" />
               <h3 className="text-xl font-bold font-heading mb-2 text-neutral-800">Arama Yapın</h3>
               <p className="text-neutral-500">Üst menüdeki arama çubuğunu kullanarak ürün, marka veya model arayabilirsiniz.</p>
             </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Heart, ShoppingCart, Trash2, ArrowRight, ImageIcon } from 'lucide-react'
+import { Bookmark, ShoppingCart, Trash2, ArrowRight, ImageIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/context/CartContext'
 import { useFavorites } from '@/context/FavoritesContext'
@@ -41,6 +41,11 @@ export default function FavoritesPage() {
 
       if (data) {
         setProducts(data)
+        // localStorage'da var ama DB'de olmayan stale ID'leri temizle
+        const validIds = new Set(data.map((p: any) => p.id))
+        favoriteIds.forEach(id => {
+          if (!validIds.has(id)) toggleFavorite(id)
+        })
       }
       setLoading(false)
     }
@@ -61,8 +66,8 @@ export default function FavoritesPage() {
         <div className="container-custom py-8">
           
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-red-50 text-red-500 rounded-xl flex items-center justify-center">
-              <Heart className="w-6 h-6 fill-current" />
+            <div className="w-12 h-12 bg-primary-50 text-primary-600 rounded-xl flex items-center justify-center">
+              <Bookmark className="w-6 h-6" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-neutral-900 font-heading">Favorilerim</h1>
@@ -83,8 +88,8 @@ export default function FavoritesPage() {
             </div>
           ) : products.length === 0 ? (
             <div className="bg-white rounded-3xl shadow-sm border border-neutral-100 p-12 text-center max-w-2xl mx-auto">
-              <div className="w-24 h-24 bg-red-50 text-red-200 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Heart className="w-12 h-12" />
+              <div className="w-24 h-24 bg-neutral-100 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Bookmark className="w-12 h-12" />
               </div>
               <h2 className="text-xl font-bold text-neutral-900 mb-2">Favori Listeniz Boş</h2>
               <p className="text-neutral-500 mb-8 max-w-md mx-auto">

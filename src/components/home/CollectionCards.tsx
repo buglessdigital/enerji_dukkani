@@ -88,57 +88,47 @@ export default function CollectionCards() {
             <Link
               key={collection.id}
               href={collection.target_url}
-              className="group relative h-64 sm:h-72 rounded-2xl overflow-hidden cursor-pointer"
+              className="group block cursor-pointer"
               id={`collection-${collection.id}`}
             >
-              {/* Background */}
-              {collection.image_url ? (
-                <div
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                  style={{ backgroundImage: `url(${collection.image_url})` }}
-                />
-              ) : (
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${gradients[index % gradients.length]} transition-transform duration-500 group-hover:scale-110`}
-                />
-              )}
+              {/* Image */}
+              <div className="relative h-52 sm:h-60 rounded-2xl overflow-hidden">
+                {/* Background */}
+                {collection.image_url ? (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                    style={{ backgroundImage: `url(${collection.image_url})` }}
+                  />
+                ) : (
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${gradients[index % gradients.length]} transition-transform duration-500 group-hover:scale-110`}
+                  />
+                )}
 
-              {/* Dark overlay for readability */}
-              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-300" />
+                {/* Dark overlay */}
+                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-colors duration-300" />
 
-              {/* Decorative pattern */}
-              <div
-                className="absolute inset-0 opacity-10"
-                style={{
-                  backgroundImage:
-                    'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)',
-                  backgroundSize: '20px 20px',
-                }}
-              />
+                {/* Hover content */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center opacity-0 translate-y-4 transition-all duration-400 group-hover:opacity-100 group-hover:translate-y-0">
+                  {collection.hover_text && (
+                    <p className="text-sm leading-relaxed text-white/90 mb-4">
+                      {collection.hover_text}
+                    </p>
+                  )}
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
+                    Keşfet
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+                </div>
+              </div>
 
-              {/* Default content */}
-              <div className="absolute inset-x-0 top-0 flex flex-col items-center justify-start text-white p-6 pt-8 text-center transition-all duration-400 group-hover:opacity-0 group-hover:-translate-y-4">
-                <h3 className="font-heading text-xl font-bold mb-1">{collection.title}</h3>
+              {/* Text below image */}
+              <div className="mt-3 text-center">
+                <h3 className="font-heading text-base font-bold text-neutral-900 mb-0.5">{collection.title}</h3>
                 {collection.subtitle && (
-                  <p className="text-sm text-white/70">{collection.subtitle}</p>
+                  <p className="text-sm text-neutral-500 line-clamp-1">{collection.subtitle}</p>
                 )}
               </div>
-
-              {/* Hover content */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center opacity-0 translate-y-4 transition-all duration-400 group-hover:opacity-100 group-hover:translate-y-0">
-                {collection.hover_text && (
-                  <p className="text-sm leading-relaxed text-white/90 mb-4">
-                    {collection.hover_text}
-                  </p>
-                )}
-                <span className="inline-flex items-center gap-1.5 text-sm font-semibold bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
-                  Keşfet
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                </span>
-              </div>
-
-              {/* Bottom gradient */}
-              <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/30 to-transparent" />
             </Link>
           ))}
         </div>

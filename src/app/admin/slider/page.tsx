@@ -13,10 +13,11 @@ export default function AdminSlider() {
   
   const [form, setForm] = useState({
     title: '', subtitle: '', description: '',
-    image_url: '', button_text: '', button_link: '',
+    image_url: '', mobile_image_url: '', button_text: '', button_link: '',
     secondary_button_text: '', secondary_button_link: '',
     sort_order: '0', is_active: true
   })
+  const [uploadingMobile, setUploadingMobile] = useState(false)
 
   async function fetchSlides() {
     setLoading(true)
@@ -31,7 +32,7 @@ export default function AdminSlider() {
     setEditingId('new')
     setForm({
       title: '', subtitle: '', description: '',
-      image_url: '', button_text: '', button_link: '',
+      image_url: '', mobile_image_url: '', button_text: '', button_link: '',
       secondary_button_text: '', secondary_button_link: '',
       sort_order: '0', is_active: true
     })
@@ -60,15 +61,40 @@ export default function AdminSlider() {
 
     const { data: { publicUrl } } = supabase.storage.from('slider_images').getPublicUrl(filePath)
     
-    setForm({ ...form, image_url: publicUrl })
+    setForm(prev => ({ ...prev, image_url: publicUrl }))
     setUploading(false)
+  }
+
+  async function handleMobileImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files || e.target.files.length === 0) return
+    const file = e.target.files[0]
+    setUploadingMobile(true)
+
+    const webpFile = await convertToWebP(file, 900, 0.85)
+    const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.webp`
+    const filePath = `hero/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('slider_images')
+      .upload(filePath, webpFile)
+
+    if (uploadError) {
+      alert('Görsel yüklenirken hata oluştu! ' + uploadError.message)
+      setUploadingMobile(false)
+      return
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('slider_images').getPublicUrl(filePath)
+    setForm(prev => ({ ...prev, mobile_image_url: publicUrl }))
+    setUploadingMobile(false)
   }
 
   function handleEdit(slide: any) {
     setEditingId(slide.id)
     setForm({
       title: slide.title, subtitle: slide.subtitle || '', description: slide.description || '',
-      image_url: slide.image_url || '', button_text: slide.button_text || '', button_link: slide.button_link || '',
+      image_url: slide.image_url || '', mobile_image_url: slide.mobile_image_url || '',
+      button_text: slide.button_text || '', button_link: slide.button_link || '',
       secondary_button_text: slide.secondary_button_text || '', secondary_button_link: slide.secondary_button_link || '',
       sort_order: slide.sort_order?.toString() || '0', is_active: slide.is_active
     })
@@ -84,7 +110,8 @@ export default function AdminSlider() {
     e.preventDefault()
     const payload = {
       title: form.title, subtitle: form.subtitle || null, description: form.description || null,
-      image_url: form.image_url || '', button_text: form.button_text || null, button_link: form.button_link || null,
+      image_url: form.image_url || '', mobile_image_url: form.mobile_image_url || null,
+      button_text: form.button_text || null, button_link: form.button_link || null,
       secondary_button_text: form.secondary_button_text || null, secondary_button_link: form.secondary_button_link || null,
       sort_order: parseInt(form.sort_order) || 0, is_active: form.is_active
     }
@@ -155,19 +182,46 @@ export default function AdminSlider() {
                <button onClick={() => setEditingId(null)} className="p-1 text-neutral-400 hover:text-neutral-700 rounded"><X className="w-4 h-4" /></button>
              </div>
              <form onSubmit={handleSubmit} className="p-5 space-y-4">
-               {form.image_url && (
-                  <div className="w-full h-32 bg-neutral-100 rounded-lg overflow-hidden border border-neutral-200 mb-2">
-                    <img src={form.image_url} alt="Preview" className="w-full h-full object-cover" />
-                  </div>
-               )}
+
+               {/* Desktop image */}
                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-neutral-700">Görsel *</label>
+                  <label className="text-sm font-medium text-neutral-700">Masaüstü Görseli *</label>
+                  {form.image_url && (
+                    <div className="w-full h-28 bg-neutral-100 rounded-lg overflow-hidden border border-neutral-200">
+                      <img src={form.image_url} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
                   <div className="flex flex-col gap-2">
                     <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploading} className="block w-full text-sm text-neutral-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer" />
                     {uploading && <p className="text-xs text-primary-600">Yükleniyor...</p>}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-neutral-500 whitespace-nowrap">Veya URL Yapıştır:</span>
+                      <span className="text-xs text-neutral-500 whitespace-nowrap">Veya URL:</span>
                       <input type="url" value={form.image_url} onChange={e => setForm({...form, image_url: e.target.value})} required className="input text-sm flex-1" placeholder="https://..." />
+                    </div>
+                  </div>
+               </div>
+
+               {/* Mobile image */}
+               <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-neutral-700">Mobil Görseli</label>
+                    <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full font-medium">İsteğe bağlı</span>
+                  </div>
+                  <p className="text-xs text-neutral-400">Boş bırakılırsa masaüstü görseli kullanılır.</p>
+                  {form.mobile_image_url && (
+                    <div className="w-full h-28 bg-neutral-100 rounded-lg overflow-hidden border border-neutral-200 relative">
+                      <img src={form.mobile_image_url} alt="Mobil Preview" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setForm(prev => ({ ...prev, mobile_image_url: '' }))} className="absolute top-1.5 right-1.5 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-neutral-500 hover:text-red-500">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <input type="file" accept="image/*" onChange={handleMobileImageUpload} disabled={uploadingMobile} className="block w-full text-sm text-neutral-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer" />
+                    {uploadingMobile && <p className="text-xs text-primary-600">Yükleniyor...</p>}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-neutral-500 whitespace-nowrap">Veya URL:</span>
+                      <input type="url" value={form.mobile_image_url} onChange={e => setForm({...form, mobile_image_url: e.target.value})} className="input text-sm flex-1" placeholder="https://..." />
                     </div>
                   </div>
                </div>
