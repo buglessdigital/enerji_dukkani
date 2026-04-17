@@ -185,7 +185,10 @@ export default function AdminSlider() {
 
                {/* Desktop image */}
                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-neutral-700">Masaüstü Görseli *</label>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-neutral-700">Masaüstü Görseli *</label>
+                    <span className="text-[10px] bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-medium">Önerilen: 1920x600px</span>
+                  </div>
                   {form.image_url && (
                     <div className="w-full h-28 bg-neutral-100 rounded-lg overflow-hidden border border-neutral-200">
                       <img src={form.image_url} alt="Preview" className="w-full h-full object-cover" />
@@ -204,10 +207,9 @@ export default function AdminSlider() {
                {/* Mobile image */}
                <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-neutral-700">Mobil Görseli</label>
-                    <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full font-medium">İsteğe bağlı</span>
+                    <label className="text-sm font-medium text-neutral-700">Mobil Görseli *</label>
+                    <span className="text-[10px] bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-medium">Önerilen: 900x1080px</span>
                   </div>
-                  <p className="text-xs text-neutral-400">Boş bırakılırsa masaüstü görseli kullanılır.</p>
                   {form.mobile_image_url && (
                     <div className="w-full h-28 bg-neutral-100 rounded-lg overflow-hidden border border-neutral-200 relative">
                       <img src={form.mobile_image_url} alt="Mobil Preview" className="w-full h-full object-cover" />
@@ -221,7 +223,7 @@ export default function AdminSlider() {
                     {uploadingMobile && <p className="text-xs text-primary-600">Yükleniyor...</p>}
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-neutral-500 whitespace-nowrap">Veya URL:</span>
-                      <input type="url" value={form.mobile_image_url} onChange={e => setForm({...form, mobile_image_url: e.target.value})} className="input text-sm flex-1" placeholder="https://..." />
+                      <input type="url" value={form.mobile_image_url} onChange={e => setForm({...form, mobile_image_url: e.target.value})} required className="input text-sm flex-1" placeholder="https://..." />
                     </div>
                   </div>
                </div>
