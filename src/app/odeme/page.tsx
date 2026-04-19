@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useCart } from '@/context/CartContext'
 import { supabase } from '@/lib/supabase'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 import { Lock, MapPin, CreditCard, CheckCircle2, ChevronRight, ShieldCheck, ImageIcon, ShoppingCart } from 'lucide-react'
 
 export default function CheckoutPage() {
@@ -13,7 +14,8 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [shippingRate, setShippingRate] = useState(0)
-  const [shippingFreeThreshold, setShippingFreeThreshold] = useState(1000)
+  const [shippingFreeThreshold, setShippingFreeThreshold] = useState(0)
+  const [taxRate, setTaxRate] = useState(0)
   const [whatsappNumber, setWhatsappNumber] = useState('')
   
   const [isReady, setIsReady] = useState(false)
@@ -28,16 +30,17 @@ export default function CheckoutPage() {
   // Auth Guard Removed (Allows Guest Checkout)
   useEffect(() => {
     async function initCheckout() {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
       if (session) {
         setUser(session.user)
       }
 
       // Fetch Shipping Settings
-      const { data } = await supabase.from('site_settings').select('shipping_free_threshold, shipping_flat_rate, whatsapp_number').single()
+      const { data } = await supabase.from('site_settings').select('shipping_free_threshold, shipping_flat_rate, whatsapp_number, tax_rate').single()
       if (data) {
-        setShippingFreeThreshold(data.shipping_free_threshold || 1000)
-        setShippingRate(data.shipping_flat_rate || 50)
+        setShippingFreeThreshold(data.shipping_free_threshold ?? 0)
+        setShippingRate(data.shipping_flat_rate ?? 0)
+        setTaxRate(data.tax_rate ?? 0)
         setWhatsappNumber(data.whatsapp_number || '')
       }
       
@@ -71,7 +74,8 @@ export default function CheckoutPage() {
   }
 
   const shippingValue = cartTotal >= shippingFreeThreshold ? 0 : shippingRate
-  const grandTotal = cartTotal + shippingValue
+  const taxAmount = cartTotal * (taxRate / 100)
+  const grandTotal = cartTotal + taxAmount + shippingValue
 
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault()
@@ -100,18 +104,17 @@ export default function CheckoutPage() {
 
       // 2. Sipariş (Order) Oluşturma
       const orderNumber = 'ENR-' + Date.now().toString().slice(-6)
-      const taxAmount = cartTotal * 0.20 // Örnek olarak KDV dahi içinde farz edip 20% logluyoruz
-      
+
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert([{
           order_number: orderNumber,
           user_id: user?.id || null,
-          status: 'pending', // Yönetici paketi hazırlarken görecek
+          status: 'pending',
           payment_method: 'credit_card',
-          payment_status: 'paid', // Sistem test aşamasında başarılı farz eder
+          payment_status: 'paid',
           subtotal: cartTotal,
-          tax_amount: cartTotal * 0.20,
+          tax_amount: taxAmount,
           shipping_cost: shippingValue,
           total: grandTotal,
           shipping_address_id: addressId,
@@ -322,6 +325,10 @@ export default function CheckoutPage() {
                   <span className="font-medium">{formatPrice(cartTotal)}</span>
                 </div>
                 <div className="flex items-center justify-between text-neutral-600 text-sm">
+                  <span>KDV (%{taxRate})</span>
+                  <span className="font-medium">{formatPrice(taxAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between text-neutral-600 text-sm">
                   <span>Kargo Ücreti</span>
                   {shippingValue === 0 ? (
                     <span className="font-bold text-green-600">Ücretsiz</span>
@@ -361,7 +368,7 @@ export default function CheckoutPage() {
             {/* WhatsApp — desktop only */}
             {whatsappNumber && (
               <a
-                href={`https://wa.me/${whatsappNumber.replace(/\s/g, '').replace(/\+/g, '')}?text=${encodeURIComponent('Merhaba, siparişim hakkında yardım almak istiyorum.')}`}
+                href={`https://wa.me/${whatsappNumber.replace(/\s/g, '').replace(/^\+/, '').replace(/^0/, '90')}?text=${encodeURIComponent('Merhaba, siparişim hakkında yardım almak istiyorum.')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hidden lg:flex items-center gap-4 mt-4 bg-white border border-neutral-100 rounded-2xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-green-200 transition-colors group"

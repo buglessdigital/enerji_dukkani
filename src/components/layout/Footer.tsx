@@ -135,7 +135,7 @@ export default function Footer() {
                 { href: '/hakkimizda', label: 'Hakkımızda' },
                 { href: '/iletisim', label: 'İletişim' },
                 { href: '/bayilik-basvurusu', label: 'Bayilik Başvurusu' },
-                { href: '/hesabim/siparislerim', label: 'Siparişlerim' },
+                { href: '/hesabim?tab=orders', label: 'Siparişlerim' },
                 { href: '/favoriler', label: 'Favorilerim' },
               ].map((link) => (
                 <li key={link.href}>

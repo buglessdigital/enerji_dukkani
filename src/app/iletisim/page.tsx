@@ -53,12 +53,19 @@ export default function ContactPage() {
     setIsSubmitting(true)
     setSubmitStatus(null)
 
-    // Contact form could be stored in a separate table or sent via email
-    // For now we'll just show success
     try {
-      // You can create a 'contact_messages' table if needed
-      // For now just simulate success
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const { error } = await supabase
+        .from('contact_messages')
+        .insert({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone || null,
+          subject: formData.subject || null,
+          message: formData.message,
+        })
+
+      if (error) throw error
+
       setSubmitStatus({
         type: 'success',
         message: 'Mesajınız başarıyla gönderildi. En kısa sürede size dönüş yapacağız.'
@@ -67,7 +74,7 @@ export default function ContactPage() {
     } catch {
       setSubmitStatus({
         type: 'error',
-        message: 'Mesaj gönderilirken bir hata oluştu.'
+        message: 'Mesaj gönderilirken bir hata oluştu. Lütfen tekrar deneyin.'
       })
     } finally {
       setIsSubmitting(false)

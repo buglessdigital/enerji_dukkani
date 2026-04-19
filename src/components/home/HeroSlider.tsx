@@ -4,28 +4,32 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Phone } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import type { HeroSlide } from '@/lib/types'
+import type { HeroSlide, SiteSettings } from '@/lib/types'
 
 export default function HeroSlider() {
   const [slides, setSlides] = useState<HeroSlide[]>([])
+  const [settings, setSettings] = useState<SiteSettings | null>(null)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [touchStartX, setTouchStartX] = useState<number | null>(null)
 
-  // Fetch slides from Supabase
+  // Fetch slides and settings from Supabase
   useEffect(() => {
-    async function fetchSlides() {
-      const { data, error } = await supabase
-        .from('hero_slides')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true })
-      if (!error && data && data.length > 0) {
-        setSlides(data)
+    async function fetchData() {
+      const [slidesRes, settingsRes] = await Promise.all([
+        supabase.from('hero_slides').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
+        supabase.from('site_settings').select('hero_fallback_badge,hero_fallback_title,hero_fallback_description').limit(1).single(),
+      ])
+      if (!slidesRes.error && slidesRes.data && slidesRes.data.length > 0) {
+        setSlides(slidesRes.data)
+      }
+      if (!settingsRes.error && settingsRes.data) {
+        setSettings(settingsRes.data as any)
       }
       setLoading(false)
     }
-    fetchSlides()
+    fetchData()
   }, [])
 
   const goToSlide = useCallback(
@@ -47,6 +51,19 @@ export default function HeroSlider() {
     if (slides.length === 0) return
     goToSlide((currentSlide - 1 + slides.length) % slides.length)
   }, [currentSlide, goToSlide, slides.length])
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX)
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return
+    const diff = touchStartX - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 50) {
+      diff > 0 ? nextSlide() : prevSlide()
+    }
+    setTouchStartX(null)
+  }
 
   // Auto-play
   useEffect(() => {
@@ -91,13 +108,13 @@ export default function HeroSlider() {
           <div className="max-w-2xl space-y-5">
             <div className="inline-flex items-center gap-2 bg-accent-500/20 border border-accent-500/30 text-accent-300 px-4 py-1.5 rounded-full text-sm font-medium backdrop-blur-sm">
               <span className="w-1.5 h-1.5 bg-accent-400 rounded-full animate-pulse" />
-              Enerji Çözümleri
+              {settings?.hero_fallback_badge || 'Enerji Çözümleri'}
             </div>
             <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl xl:text-[3.5rem] font-extrabold text-white drop-shadow-lg leading-tight">
-              Güneş Enerjisi ile Geleceği Aydınlatın
+              {settings?.hero_fallback_title || 'Güneş Enerjisi ile Geleceği Aydınlatın'}
             </h1>
             <p className="text-base sm:text-lg text-white/95 drop-shadow-md leading-relaxed max-w-xl">
-              Yüksek verimli güneş panelleri ve inverter sistemleri ile enerji maliyetlerinizi düşürün.
+              {settings?.hero_fallback_description || 'Yüksek verimli güneş panelleri ve inverter sistemleri ile enerji maliyetlerinizi düşürün.'}
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <Link href="/kategori" className="btn btn-accent btn-lg group">
@@ -125,7 +142,12 @@ export default function HeroSlider() {
   ]
 
   return (
-    <section className="relative w-full h-[480px] sm:h-[540px] lg:h-[600px] overflow-hidden bg-neutral-900" id="hero-slider">
+    <section
+      className="relative w-full h-[480px] sm:h-[540px] lg:h-[600px] overflow-hidden bg-neutral-900"
+      id="hero-slider"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Background Images */}
       {slides.map((s, i) => (
         <div

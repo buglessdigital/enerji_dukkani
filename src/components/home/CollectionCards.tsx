@@ -25,8 +25,7 @@ export default function CollectionCards() {
     fetchCollections()
   }, [])
 
-  // Gradient colors for cards without images
-  const gradients = [
+  const fallbackGradients = [
     'from-blue-600 to-blue-800',
     'from-emerald-600 to-emerald-800',
     'from-amber-600 to-amber-800',
@@ -101,7 +100,7 @@ export default function CollectionCards() {
                   />
                 ) : (
                   <div
-                    className={`absolute inset-0 bg-gradient-to-br ${gradients[index % gradients.length]} transition-transform duration-500 group-hover:scale-110`}
+                    className={`absolute inset-0 bg-gradient-to-br ${collection.gradient_color || fallbackGradients[index % fallbackGradients.length]} transition-transform duration-500 group-hover:scale-110`}
                   />
                 )}
 

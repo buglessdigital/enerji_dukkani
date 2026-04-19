@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Save, X, ImageIcon } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabaseBrowser as supabase } from '@/lib/supabase-browser'
 import { convertToWebP } from '@/lib/imageUtils'
 
 export default function AdminCollections() {
@@ -11,9 +11,23 @@ export default function AdminCollections() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   
+  const GRADIENTS = [
+    { label: 'Mavi', value: 'from-blue-600 to-blue-800' },
+    { label: 'Yeşil', value: 'from-emerald-600 to-emerald-800' },
+    { label: 'Sarı', value: 'from-amber-600 to-amber-800' },
+    { label: 'Mor', value: 'from-violet-600 to-violet-800' },
+    { label: 'Pembe', value: 'from-rose-600 to-rose-800' },
+    { label: 'Turkuaz', value: 'from-cyan-600 to-cyan-800' },
+    { label: 'Turuncu', value: 'from-orange-600 to-orange-800' },
+    { label: 'Kırmızı', value: 'from-red-600 to-red-800' },
+    { label: 'Lacivert', value: 'from-indigo-600 to-indigo-800' },
+    { label: 'Gri', value: 'from-slate-600 to-slate-800' },
+  ]
+
   const [form, setForm] = useState({
     title: '', subtitle: '', hover_text: '',
     image_url: '', target_url: '',
+    gradient_color: 'from-blue-600 to-blue-800',
     sort_order: '0', is_active: true
   })
 
@@ -28,7 +42,7 @@ export default function AdminCollections() {
 
   function handleAdd() {
     setEditingId('new')
-    setForm({ title: '', subtitle: '', hover_text: '', image_url: '', target_url: '', sort_order: '0', is_active: true })
+    setForm({ title: '', subtitle: '', hover_text: '', image_url: '', target_url: '', gradient_color: 'from-blue-600 to-blue-800', sort_order: '0', is_active: true })
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -63,6 +77,7 @@ export default function AdminCollections() {
     setForm({
       title: col.title, subtitle: col.subtitle || '', hover_text: col.hover_text || '',
       image_url: col.image_url || '', target_url: col.target_url || '',
+      gradient_color: col.gradient_color || 'from-blue-600 to-blue-800',
       sort_order: col.sort_order?.toString() || '0', is_active: col.is_active
     })
   }
@@ -78,6 +93,7 @@ export default function AdminCollections() {
     const payload = {
       title: form.title, subtitle: form.subtitle || null, hover_text: form.hover_text || null,
       image_url: form.image_url || '', target_url: form.target_url || '',
+      gradient_color: form.gradient_color || 'from-blue-600 to-blue-800',
       sort_order: parseInt(form.sort_order) || 0, is_active: form.is_active
     }
 
@@ -171,6 +187,20 @@ export default function AdminCollections() {
                <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Başlık *</label><input type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})} required className="input text-sm" /></div>
                <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Alt Başlık</label><input type="text" value={form.subtitle} onChange={e => setForm({...form, subtitle: e.target.value})} className="input text-sm" /></div>
                <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Hover Açıklaması</label><textarea value={form.hover_text} onChange={e => setForm({...form, hover_text: e.target.value})} rows={2} className="input text-sm resize-none" placeholder="Üzerine gelince çıkacak yazı" /></div>
+               <div className="space-y-2">
+                 <label className="text-sm font-medium text-neutral-700">Görsel Yoksa Gradient Rengi</label>
+                 <div className="grid grid-cols-5 gap-2">
+                   {GRADIENTS.map(g => (
+                     <button
+                       key={g.value}
+                       type="button"
+                       title={g.label}
+                       onClick={() => setForm({...form, gradient_color: g.value})}
+                       className={`h-8 rounded-lg bg-gradient-to-br ${g.value} transition-all ${form.gradient_color === g.value ? 'ring-2 ring-offset-2 ring-neutral-800 scale-110' : 'opacity-70 hover:opacity-100'}`}
+                     />
+                   ))}
+                 </div>
+               </div>
                <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Hedef Link *</label><input type="text" value={form.target_url} onChange={e => setForm({...form, target_url: e.target.value})} required className="input text-sm" placeholder="/kategori/..." /></div>
                
                <div className="grid grid-cols-2 gap-3">

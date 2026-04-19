@@ -15,7 +15,7 @@ import {
   Eye,
   Clock,
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabaseBrowser as supabase } from '@/lib/supabase-browser'
 
 interface DashboardStats {
   totalRevenue: number

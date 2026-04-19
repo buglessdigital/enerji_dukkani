@@ -9,8 +9,10 @@ import Footer from '@/components/layout/Footer'
 import WhatsAppButton from '@/components/common/WhatsAppButton'
 import { Heart, ShoppingCart, Star, Check, AlertCircle, Shield, Truck, RefreshCw, ChevronRight, ImageIcon, SearchX, Zap } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 import type { Product } from '@/lib/types'
 import { useCart } from '@/context/CartContext'
+import type { VariantSelection } from '@/context/CartContext'
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat('tr-TR', {
@@ -31,10 +33,19 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const [activeImage, setActiveImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({})
-  const [activeTab, setActiveTab] = useState<'desc' | 'specs' | 'delivery'>('desc')
+  const [activeTab, setActiveTab] = useState<'desc' | 'specs' | 'delivery' | 'reviews'>('desc')
   const [isFavorite, setIsFavorite] = useState(false)
   const [rating, setRating] = useState({ average: 0, count: 0 })
+  const [reviews, setReviews] = useState<any[]>([])
   const [siteSettings, setSiteSettings] = useState<{ whatsapp: string; phone: string } | null>(null)
+  const [authUser, setAuthUser] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<any>(null)
+  const [reviewRating, setReviewRating] = useState(0)
+  const [reviewHover, setReviewHover] = useState(0)
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewSubmitted, setReviewSubmitted] = useState(false)
+  const [reviewError, setReviewError] = useState('')
 
   useEffect(() => {
     async function fetchProduct() {
@@ -79,18 +90,20 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           setSelectedVariants(variantGroups)
         }
 
-        // Fetch approved review stats
-        const { data: reviews } = await supabase
+        // Fetch approved reviews with profile names
+        const { data: reviewData } = await supabase
           .from('reviews')
-          .select('rating')
+          .select('*, user:profiles(full_name)')
           .eq('product_id', data.id)
           .eq('status', 'approved')
-        
-        if (reviews && reviews.length > 0) {
-          const sum = reviews.reduce((acc, r) => acc + r.rating, 0)
+          .order('created_at', { ascending: false })
+
+        if (reviewData && reviewData.length > 0) {
+          setReviews(reviewData)
+          const sum = reviewData.reduce((acc: number, r: any) => acc + r.rating, 0)
           setRating({
-            average: Math.round((sum / reviews.length) * 10) / 10,
-            count: reviews.length
+            average: Math.round((sum / reviewData.length) * 10) / 10,
+            count: reviewData.length
           })
         }
       }
@@ -108,8 +121,41 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
     fetchProduct()
   }, [slug])
 
+  useEffect(() => {
+    supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setAuthUser(session.user)
+        supabaseBrowser.from('profiles').select('full_name').eq('id', session.user.id).single()
+          .then(({ data }) => { if (data) setUserProfile(data) })
+      }
+    })
+  }, [])
+
+  async function handleReviewSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!reviewRating) { setReviewError('Lütfen bir puan seçin.'); return }
+    if (!authUser) { setReviewError('Yorum yapabilmek için giriş yapmalısınız.'); return }
+    setReviewError('')
+    setReviewSubmitting(true)
+    const { error } = await supabaseBrowser.from('reviews').insert({
+      product_id: product!.id,
+      user_id: authUser.id,
+      rating: reviewRating,
+      comment: reviewComment.trim() || null,
+      status: 'pending'
+    })
+    setReviewSubmitting(false)
+    if (error) {
+      setReviewError('Yorum gönderilirken bir hata oluştu. Lütfen tekrar deneyin.')
+    } else {
+      setReviewSubmitted(true)
+      setReviewRating(0)
+      setReviewComment('')
+    }
+  }
+
   // Group variants by name
-  const variantGroups = product?.variants?.reduce((acc: Record<string, typeof product.variants>, v) => {
+  const variantGroups = product?.variants?.reduce((acc: Record<string, any[]>, v) => {
     const name = v!.name
     if (!acc[name]) acc[name] = []
     acc[name].push(v!)
@@ -119,6 +165,24 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const handleVariantSelect = (name: string, value: string) => {
     setSelectedVariants(prev => ({ ...prev, [name]: value }))
   }
+
+  // Build selected variant objects from current selections
+  const selectedVariantObjects: VariantSelection[] = Object.entries(selectedVariants)
+    .map(([name, value]) => (variantGroups[name] as any[])?.find((v: any) => v.value === value))
+    .filter(Boolean)
+
+  // Effective price: base + sum of all selected variant modifiers
+  const totalModifier = selectedVariantObjects.reduce((sum, v) => sum + (v.price_modifier || 0), 0)
+  const effectivePrice = product ? product.price + totalModifier : 0
+  const effectiveSalePrice = product?.sale_price != null ? product.sale_price + totalModifier : null
+  const displayPrice = effectiveSalePrice ?? effectivePrice
+
+  // Effective stock: minimum of product stock and each selected variant's stock
+  const effectiveStock = product
+    ? selectedVariantObjects.length > 0
+      ? Math.min(product.stock_quantity, ...selectedVariantObjects.map(v => v.stock_quantity))
+      : product.stock_quantity
+    : 0
 
   // Get technical specs from JSONB
   const specs = product?.technical_specs || []
@@ -136,9 +200,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
             <div className="bg-white rounded-3xl shadow-sm border border-neutral-100 p-4 sm:p-6 lg:p-10">
               <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
                 <div className="lg:w-5/12">
-                  <div className="aspect-square skeleton rounded-2xl" />
+                  <div className="aspect-[4/3] skeleton rounded-2xl" />
                   <div className="grid grid-cols-4 gap-3 mt-4">
-                    {[1,2,3,4].map(i => <div key={i} className="aspect-square skeleton rounded-xl" />)}
+                    {[1,2,3,4].map(i => <div key={i} className="aspect-[4/3] skeleton rounded-xl" />)}
                   </div>
                 </div>
                 <div className="lg:w-7/12 space-y-4">
@@ -177,9 +241,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
   const images = product.images || []
   const activeImg = images[activeImage]
-  const discountPercent = product.discount_percent || 
-    (product.sale_price && product.price > 0 
-      ? Math.round(((product.price - product.sale_price) / product.price) * 100) 
+  const discountPercent = product.discount_percent ||
+    (effectiveSalePrice != null && effectivePrice > 0
+      ? Math.round(((effectivePrice - effectiveSalePrice) / effectivePrice) * 100)
       : null)
 
   return (
@@ -213,13 +277,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
               {/* Left: Gallery */}
               <div className="lg:w-5/12 flex-shrink-0 space-y-3">
                 {/* Main Image */}
-                <div className="aspect-square bg-gradient-to-br from-neutral-100 to-neutral-50 sm:rounded-2xl overflow-hidden border-b sm:border border-neutral-100 relative group cursor-zoom-in">
+                <div className="aspect-[4/3] bg-neutral-100 sm:rounded-2xl overflow-hidden border-b sm:border border-neutral-100 relative group cursor-zoom-in">
                   {activeImg?.url ? (
                     <Image
                       src={activeImg.url}
                       alt={activeImg.alt_text || product.name}
                       fill
-                      className="object-contain p-4"
+                      className="object-cover"
                       sizes="(max-width: 1024px) 100vw, 40vw"
                       priority
                     />
@@ -245,7 +309,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                       <button
                         key={img.id}
                         onClick={() => setActiveImage(i)}
-                        className={`shrink-0 w-16 h-16 sm:w-auto sm:h-auto sm:aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                        className={`shrink-0 w-20 h-16 sm:w-auto sm:h-auto sm:aspect-[4/3] rounded-xl overflow-hidden border-2 transition-all ${
                           activeImage === i ? 'border-primary-500' : 'border-transparent hover:border-primary-200'
                         }`}
                       >
@@ -254,8 +318,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                             src={img.url}
                             alt={img.alt_text || `Ürün görsel ${i + 1}`}
                             fill
-                            className="object-contain p-1"
-                            sizes="80px"
+                            className="object-cover"
+                            sizes="100px"
                           />
                         </div>
                       </button>
@@ -292,11 +356,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                   {/* Price */}
                   <div className="flex items-baseline gap-2.5">
                     <span className="text-3xl font-heading font-extrabold text-primary-700">
-                      {formatPrice(product.sale_price || product.price)}
+                      {formatPrice(displayPrice)}
                     </span>
-                    {product.sale_price && (
+                    {effectiveSalePrice != null && (
                       <span className="text-lg text-neutral-400 font-medium line-through">
-                        {formatPrice(product.price)}
+                        {formatPrice(effectivePrice)}
                       </span>
                     )}
                   </div>
@@ -320,44 +384,57 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
                 {/* Variants */}
                 {Object.entries(variantGroups).map(([name, variants]) => (
-                  <div key={name} className="mb-8">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold text-neutral-900">{name}</span>
+                  <div key={name} className="mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="font-semibold text-neutral-900 text-sm">{name}:</span>
+                      <span className="text-sm text-primary-600 font-medium">
+                        {selectedVariants[name]}
+                      </span>
                     </div>
-                    <div className="flex flex-wrap gap-2.5">
-                      {(variants as any[]).map(variant => (
-                        <button
-                          key={variant.id}
-                          onClick={() => handleVariantSelect(name, variant.value)}
-                          className={`px-5 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                            selectedVariants[name] === variant.value
-                              ? 'border-primary-500 bg-primary-50 text-primary-700 ring-1 ring-primary-500'
-                              : 'border-neutral-200 bg-white text-neutral-700 hover:border-primary-200 hover:bg-neutral-50'
-                          }`}
-                        >
-                          {variant.value}
-                          {variant.price_modifier !== 0 && (
-                            <span className="ml-1 text-xs text-neutral-400">
-                              ({variant.price_modifier > 0 ? '+' : ''}{formatPrice(variant.price_modifier)})
-                            </span>
-                          )}
-                        </button>
-                      ))}
+                    <div className="flex flex-wrap gap-2">
+                      {(variants as any[]).map(variant => {
+                        const isSelected = selectedVariants[name] === variant.value
+                        const isOutOfStock = variant.stock_quantity === 0
+                        return (
+                          <button
+                            key={variant.id}
+                            onClick={() => !isOutOfStock && handleVariantSelect(name, variant.value)}
+                            disabled={isOutOfStock}
+                            className={`relative px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
+                              isOutOfStock
+                                ? 'border-neutral-100 bg-neutral-50 text-neutral-300 cursor-not-allowed line-through'
+                                : isSelected
+                                  ? 'border-primary-500 bg-primary-50 text-primary-700 ring-1 ring-primary-500 shadow-sm'
+                                  : 'border-neutral-200 bg-white text-neutral-700 hover:border-primary-300 hover:bg-neutral-50'
+                            }`}
+                          >
+                            {variant.value}
+                            {variant.price_modifier !== 0 && !isOutOfStock && (
+                              <span className="ml-1.5 text-xs opacity-60">
+                                {variant.price_modifier > 0 ? '+' : ''}{formatPrice(variant.price_modifier)}
+                              </span>
+                            )}
+                            {isOutOfStock && (
+                              <span className="ml-1.5 text-xs text-neutral-300 no-underline" style={{ textDecoration: 'none' }}>Tükendi</span>
+                            )}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 ))}
 
                 {/* Stock Warning */}
                 <div className="flex items-center gap-2 mb-6 text-sm">
-                  {product.stock_quantity > 10 ? (
+                  {effectiveStock > 10 ? (
                     <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1.5 rounded-lg font-medium border border-green-100">
                       <Check className="w-4 h-4" />
                       Stokta Var
                     </div>
-                  ) : product.stock_quantity > 0 ? (
+                  ) : effectiveStock > 0 ? (
                     <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg font-medium border border-amber-100">
                       <AlertCircle className="w-4 h-4" />
-                      Son {product.stock_quantity} ürün kaldı!
+                      Son {effectiveStock} ürün kaldı!
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-1.5 rounded-lg font-medium border border-red-100">
@@ -406,10 +483,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                   <div className="hidden sm:flex gap-3">
                     <button
                       onClick={() => {
-                        addToCart(product, quantity)
+                        addToCart(product, quantity, selectedVariantObjects.length > 0 ? selectedVariantObjects : undefined)
                         alert('Ürün sepete eklendi!')
                       }}
-                      disabled={product.stock_quantity === 0}
+                      disabled={effectiveStock === 0}
                       className="btn btn-outline btn-lg flex-1 group border-primary-600 text-primary-600 hover:bg-primary-50"
                     >
                       <ShoppingCart className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" />
@@ -417,10 +494,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                     </button>
                     <button
                       onClick={() => {
-                        addToCart(product, quantity)
+                        addToCart(product, quantity, selectedVariantObjects.length > 0 ? selectedVariantObjects : undefined)
                         router.push('/odeme')
                       }}
-                      disabled={product.stock_quantity === 0}
+                      disabled={effectiveStock === 0}
                       className="btn btn-primary btn-lg flex-1 group"
                     >
                       <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />
@@ -439,7 +516,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                       <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
                     </button>
                     <a
-                      href={`https://wa.me/${(siteSettings?.whatsapp || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Merhaba, aşağıdaki ürün hakkında bilgi almak istiyorum:\n\n*${product.name}*\n${typeof window !== 'undefined' ? window.location.href : ''}`)}`}
+                      href={`https://wa.me/${(siteSettings?.whatsapp || '').replace(/\s/g, '').replace(/^\+/, '').replace(/^0/, '90')}?text=${encodeURIComponent(`Merhaba, aşağıdaki ürün hakkında bilgi almak istiyorum:\n\n*${product.name}*\n${typeof window !== 'undefined' ? window.location.href : ''}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex flex-1 items-center justify-center gap-2 h-12 rounded-xl font-semibold text-sm text-white"
@@ -454,7 +531,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
                   {/* Desktop: WhatsApp ile Sipariş Ver */}
                   <a
-                    href={`https://wa.me/${(siteSettings?.whatsapp || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                    href={`https://wa.me/${(siteSettings?.whatsapp || '').replace(/\s/g, '').replace(/^\+/, '').replace(/^0/, '90')}?text=${encodeURIComponent(
                       `Merhaba, aşağıdaki ürün hakkında bilgi almak istiyorum:\n\n*${product.name}*\n${typeof window !== 'undefined' ? window.location.href : ''}`
                     )}`}
                     target="_blank"
@@ -482,8 +559,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                 <Truck className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h4 className="font-bold text-neutral-900 text-sm">Ücretsiz & Hızlı Kargo</h4>
-                <p className="text-xs text-neutral-500 mt-0.5">Özenle paketlenmiş sigortalı gönderim</p>
+                <h4 className="font-bold text-neutral-900 text-sm">{siteSettings?.feature_shipping_title || 'Ücretsiz & Hızlı Kargo'}</h4>
+                <p className="text-xs text-neutral-500 mt-0.5">{siteSettings?.feature_shipping_desc || 'Özenle paketlenmiş sigortalı gönderim'}</p>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl border border-neutral-100 shadow-sm flex items-center gap-4">
@@ -491,8 +568,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                 <Shield className="w-6 h-6 text-emerald-600" />
               </div>
               <div>
-                <h4 className="font-bold text-neutral-900 text-sm">Orijinal Ürün Garantisi</h4>
-                <p className="text-xs text-neutral-500 mt-0.5">Resmi distribütör veya üretici garantisi</p>
+                <h4 className="font-bold text-neutral-900 text-sm">{siteSettings?.feature_guarantee_title || 'Orijinal Ürün Garantisi'}</h4>
+                <p className="text-xs text-neutral-500 mt-0.5">{siteSettings?.feature_guarantee_desc || 'Resmi distribütör veya üretici garantisi'}</p>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl border border-neutral-100 shadow-sm flex items-center gap-4">
@@ -500,8 +577,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                 <RefreshCw className="w-6 h-6 text-amber-600" />
               </div>
               <div>
-                <h4 className="font-bold text-neutral-900 text-sm">Kolay İade & Değişim</h4>
-                <p className="text-xs text-neutral-500 mt-0.5">14 gün içerisinde koşulsuz iade hakkı</p>
+                <h4 className="font-bold text-neutral-900 text-sm">{siteSettings?.feature_return_title || 'Kolay İade & Değişim'}</h4>
+                <p className="text-xs text-neutral-500 mt-0.5">{siteSettings?.feature_return_desc || '14 gün içerisinde koşulsuz iade hakkı'}</p>
               </div>
             </div>
           </div>
@@ -529,13 +606,26 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
               >
                 Teknik Özellikler
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('delivery')}
                 className={`px-6 sm:px-8 py-4 sm:py-5 text-left sm:text-center text-sm sm:text-base font-bold transition-colors border-l-4 sm:border-l-0 sm:border-b-2 ${
                   activeTab === 'delivery' ? 'border-primary-600 bg-primary-50/50 sm:bg-transparent text-primary-600' : 'border-transparent sm:border-transparent text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50'
                 }`}
               >
                 Teslimat ve İade
+              </button>
+              <button
+                onClick={() => setActiveTab('reviews')}
+                className={`px-6 sm:px-8 py-4 sm:py-5 text-left sm:text-center text-sm sm:text-base font-bold transition-colors border-l-4 sm:border-l-0 sm:border-b-2 flex items-center gap-2 ${
+                  activeTab === 'reviews' ? 'border-primary-600 bg-primary-50/50 sm:bg-transparent text-primary-600' : 'border-transparent sm:border-transparent text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50'
+                }`}
+              >
+                Yorumlar
+                {rating.count > 0 && (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${activeTab === 'reviews' ? 'bg-primary-100 text-primary-700' : 'bg-neutral-100 text-neutral-500'}`}>
+                    {rating.count}
+                  </span>
+                )}
               </button>
             </div>
 
@@ -572,15 +662,163 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                 </div>
               )}
 
+              {activeTab === 'reviews' && (
+                <div className="max-w-3xl space-y-10">
+
+                  {/* Özet */}
+                  {rating.count > 0 && (
+                    <div className="flex items-center gap-6 p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
+                      <div className="text-center shrink-0">
+                        <div className="text-5xl font-extrabold text-neutral-900 font-heading leading-none">{rating.average}</div>
+                        <div className="flex items-center justify-center gap-0.5 mt-2">
+                          {[1,2,3,4,5].map(s => (
+                            <Star key={s} className={`w-4 h-4 ${s <= Math.round(rating.average) ? 'text-amber-400 fill-amber-400' : 'text-neutral-200 fill-neutral-200'}`} />
+                          ))}
+                        </div>
+                        <div className="text-xs text-neutral-500 mt-1">{rating.count} değerlendirme</div>
+                      </div>
+                      <div className="flex-1 space-y-1.5">
+                        {[5,4,3,2,1].map(star => {
+                          const count = reviews.filter(r => r.rating === star).length
+                          const pct = rating.count > 0 ? (count / rating.count) * 100 : 0
+                          return (
+                            <div key={star} className="flex items-center gap-2 text-xs">
+                              <span className="w-3 text-neutral-500 font-medium text-right">{star}</span>
+                              <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />
+                              <div className="flex-1 bg-neutral-200 rounded-full h-1.5 overflow-hidden">
+                                <div className="h-full bg-amber-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="w-5 text-neutral-400">{count}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Yorum Listesi */}
+                  {reviews.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Star className="w-12 h-12 mx-auto mb-3 text-neutral-200 fill-neutral-200" />
+                      <p className="text-neutral-500 font-medium">Henüz yorum yapılmamış.</p>
+                      <p className="text-neutral-400 text-sm mt-1">İlk yorumu siz yapın!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {reviews.map(review => (
+                        <div key={review.id} className="bg-white border border-neutral-100 rounded-2xl p-5 shadow-sm">
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 font-bold text-sm flex items-center justify-center shrink-0">
+                                {(review.user?.full_name || 'K').charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-sm text-neutral-900">{review.user?.full_name || 'Müşteri'}</p>
+                                <p className="text-xs text-neutral-400">{new Date(review.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              {[1,2,3,4,5].map(s => (
+                                <Star key={s} className={`w-3.5 h-3.5 ${s <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-neutral-200 fill-neutral-200'}`} />
+                              ))}
+                            </div>
+                          </div>
+                          {review.comment && (
+                            <p className="text-sm text-neutral-700 leading-relaxed">{review.comment}</p>
+                          )}
+                          {review.admin_reply && (
+                            <div className="mt-3 pl-4 border-l-2 border-primary-200 bg-primary-50/50 rounded-r-xl py-2.5 pr-3">
+                              <p className="text-xs font-bold text-primary-700 mb-1">Satıcı Yanıtı</p>
+                              <p className="text-xs text-neutral-600 leading-relaxed">{review.admin_reply}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Yorum Formu */}
+                  <div className="bg-neutral-50 rounded-2xl border border-neutral-100 p-6">
+                    <h3 className="font-heading font-bold text-neutral-900 text-lg mb-5">Yorum Yaz</h3>
+
+                    {!authUser ? (
+                      <div className="text-center py-6">
+                        <p className="text-neutral-500 mb-4">Yorum yapabilmek için giriş yapmanız gerekmektedir.</p>
+                        <a href="/hesabim" className="btn btn-primary">Giriş Yap</a>
+                      </div>
+                    ) : reviewSubmitted ? (
+                      <div className="text-center py-6">
+                        <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <Check className="w-7 h-7 text-green-600" />
+                        </div>
+                        <p className="font-semibold text-neutral-900 mb-1">Yorumunuz alındı!</p>
+                        <p className="text-sm text-neutral-500">İnceleme sonrasında yayınlanacaktır.</p>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleReviewSubmit} className="space-y-5">
+                        <div>
+                          <label className="block text-sm font-semibold text-neutral-800 mb-2">Puanınız <span className="text-red-500">*</span></label>
+                          <div className="flex items-center gap-1">
+                            {[1,2,3,4,5].map(s => (
+                              <button
+                                type="button"
+                                key={s}
+                                onMouseEnter={() => setReviewHover(s)}
+                                onMouseLeave={() => setReviewHover(0)}
+                                onClick={() => setReviewRating(s)}
+                                className="p-1 transition-transform hover:scale-110"
+                              >
+                                <Star className={`w-7 h-7 transition-colors ${s <= (reviewHover || reviewRating) ? 'text-amber-400 fill-amber-400' : 'text-neutral-300 fill-neutral-300'}`} />
+                              </button>
+                            ))}
+                            {reviewRating > 0 && (
+                              <span className="ml-2 text-sm text-neutral-500">
+                                {['','Çok Kötü','Kötü','Orta','İyi','Mükemmel'][reviewRating]}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-neutral-800 mb-2">Yorumunuz <span className="text-neutral-400 font-normal">(isteğe bağlı)</span></label>
+                          <textarea
+                            value={reviewComment}
+                            onChange={e => setReviewComment(e.target.value)}
+                            rows={4}
+                            maxLength={1000}
+                            placeholder="Bu ürünü nasıl buldunuz? Deneyiminizi paylaşın..."
+                            className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none bg-white"
+                          />
+                          <p className="text-xs text-neutral-400 mt-1 text-right">{reviewComment.length}/1000</p>
+                        </div>
+
+                        {reviewError && (
+                          <p className="text-sm text-red-600 bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">{reviewError}</p>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={reviewSubmitting || !reviewRating}
+                          className="btn btn-primary w-full sm:w-auto disabled:opacity-50"
+                        >
+                          {reviewSubmitting ? 'Gönderiliyor...' : 'Yorum Gönder'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+
+                </div>
+              )}
+
               {activeTab === 'delivery' && (
                 <div className="max-w-4xl space-y-6 text-neutral-600 leading-relaxed text-sm">
                   <div>
                     <h4 className="font-bold text-neutral-900 mb-2 text-base">Gönderim Süreci</h4>
-                    <p>Siparişleriniz, onaylandıktan sonra 1-3 iş günü içerisinde kargoya teslim edilmektedir. Özel üretim gerektiren veya &quot;Ön Sipariş&quot; statüsündeki ürünlerin teslim süreleri ürün sayfasında ayrıca belirtilmektedir. Kargo firması tarafından size iletilen takip numarası ile sipariş durumunuzu Hesabım &gt; Siparişlerim sayfasından takip edebilirsiniz.</p>
+                    <p>{siteSettings?.delivery_shipping_text || 'Siparişleriniz, onaylandıktan sonra 1-3 iş günü içerisinde kargoya teslim edilmektedir.'}</p>
                   </div>
                   <div>
                     <h4 className="font-bold text-neutral-900 mb-2 text-base">İade Koşulları</h4>
-                    <p>Satın aldığınız ürünleri, teslimat tarihinden itibaren 14 gün içerisinde herhangi bir mazeret belirtmeksizin iade edebilirsiniz. İade edilecek ürünün orijinal ambalajında, kullanılmamış ve tekrar satılabilir özelliğini yitirmemiş olması gerekmektedir. Güneş paneli gibi kırılgan büyük hacimli ürünlerin iade gönderimlerinde, ürünün tarafınıza ulaştığı şekilde korunaklı (paletli vb.) sevk edilmesi zorunludur.</p>
+                    <p>{siteSettings?.delivery_return_text || 'Satın aldığınız ürünleri, teslimat tarihinden itibaren 14 gün içerisinde iade edebilirsiniz.'}</p>
                   </div>
                 </div>
               )}

@@ -2,22 +2,33 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 
 export interface CartItem {
-  id: string
+  id: string           // product_id + variant combination, unique per selection
   product_id: string
+  variant_id?: string
+  variant_label?: string   // e.g. "Güç: 400W, Renk: Siyah"
   name: string
   slug: string
-  price: number
-  sale_price: number | null
+  price: number        // effective price (base + variant modifier)
+  sale_price: number | null  // effective sale price (base sale + variant modifier)
   image_url: string
   quantity: number
   stock_quantity: number
 }
 
+export interface VariantSelection {
+  id: string
+  name: string
+  value: string
+  price_modifier: number
+  stock_quantity: number
+}
+
 interface CartContextType {
   cart: CartItem[]
-  addToCart: (product: any, quantity?: number) => void
+  addToCart: (product: any, quantity?: number, variants?: VariantSelection[]) => void
   removeFromCart: (id: string) => void
   updateQuantity: (id: string, quantity: number) => void
   clearCart: () => void
@@ -39,7 +50,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Auth değişikliklerini dinle — kullanıcıya özel sepeti yükle/temizle
   useEffect(() => {
     async function init() {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
       const key = getCartKey(session?.user?.id ?? null)
       setCartKey(key)
       try {
@@ -52,7 +63,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
     init()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
       const key = getCartKey(session?.user?.id ?? null)
       setCartKey(key)
       setIsLoaded(false)
@@ -75,13 +86,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [cart, isLoaded, cartKey])
 
-  const addToCart = (product: any, quantity: number = 1) => {
+  const addToCart = (product: any, quantity: number = 1, variants?: VariantSelection[]) => {
     setCart((prev) => {
-      const existing = prev.find(item => item.product_id === product.id)
+      // Build a unique id that includes variant selection
+      const variantKey = variants && variants.length > 0
+        ? variants.map(v => v.id).sort().join('_')
+        : ''
+      const itemId = variantKey ? `${product.id}_${variantKey}` : product.id
+
+      const existing = prev.find(item => item.id === itemId)
+
+      // Calculate effective price: base + sum of all variant modifiers
+      const totalModifier = variants?.reduce((sum, v) => sum + (v.price_modifier || 0), 0) ?? 0
+      const effectivePrice = product.price + totalModifier
+      const effectiveSalePrice = product.sale_price != null
+        ? product.sale_price + totalModifier
+        : null
+
+      // Effective stock: minimum of product stock and each variant's stock
+      const effectiveStock = variants && variants.length > 0
+        ? Math.min(product.stock_quantity || 0, ...variants.map(v => v.stock_quantity))
+        : (product.stock_quantity || 0)
+
+      const variantLabel = variants && variants.length > 0
+        ? variants.map(v => `${v.name}: ${v.value}`).join(', ')
+        : undefined
+
       if (existing) {
         return prev.map(item =>
-          item.product_id === product.id
-            ? { ...item, quantity: Math.min(item.quantity + quantity, item.stock_quantity) }
+          item.id === itemId
+            ? { ...item, quantity: Math.min(item.quantity + quantity, effectiveStock) }
             : item
         )
       }
@@ -93,15 +127,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
           : ''
 
       return [...prev, {
-        id: product.id,
+        id: itemId,
         product_id: product.id,
+        variant_id: variants?.[0]?.id,
+        variant_label: variantLabel,
         name: product.name,
         slug: product.slug,
-        price: product.price,
-        sale_price: product.sale_price,
+        price: effectivePrice,
+        sale_price: effectiveSalePrice,
         image_url: cover || '',
-        quantity: Math.min(quantity, product.stock_quantity || 1),
-        stock_quantity: product.stock_quantity || 0,
+        quantity: Math.min(quantity, effectiveStock || 1),
+        stock_quantity: effectiveStock,
       }]
     })
   }

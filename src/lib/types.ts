@@ -93,6 +93,7 @@ export interface Collection {
   hover_text: string | null
   image_url: string
   target_url: string
+  gradient_color: string
   sort_order: number
   is_active: boolean
   created_at: string
@@ -246,6 +247,17 @@ export interface SiteSettings {
   currency: string           // "TRY"
   tax_rate: number           // e.g. 20
   maintenance_mode: boolean
+  feature_shipping_title: string
+  feature_shipping_desc: string
+  feature_guarantee_title: string
+  feature_guarantee_desc: string
+  feature_return_title: string
+  feature_return_desc: string
+  delivery_shipping_text: string
+  delivery_return_text: string
+  hero_fallback_badge: string
+  hero_fallback_title: string
+  hero_fallback_description: string
 }
 
 // --- Static Pages (Hakkımızda etc.) ---
@@ -273,6 +285,36 @@ export interface PageValue {
 export interface PageStat {
   label: string     // e.g. "Tamamlanan Proje"
   value: string     // e.g. "500+"
+}
+
+// --- Quotes ---
+export interface QuoteItem {
+  product_id: string
+  product_name: string
+  product_sku: string | null
+  image_url: string | null
+  quantity: number
+  unit_price: number
+  total_price: number
+}
+
+export interface Quote {
+  id: string
+  quote_number: string
+  customer_name: string
+  customer_phone: string
+  customer_email: string | null
+  valid_until: string | null
+  note: string | null
+  items: QuoteItem[]
+  subtotal: number
+  tax_rate: number
+  tax_amount: number
+  total: number
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'
+  created_by: string | null
+  created_at: string
+  updated_at: string
 }
 
 // --- Cart (Client-side) ---

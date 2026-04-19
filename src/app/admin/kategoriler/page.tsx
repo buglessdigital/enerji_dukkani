@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Save, X, Network, Eye, EyeOff } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabaseBrowser as supabase } from '@/lib/supabase-browser'
 
 export default function AdminCategories() {
   const [categories, setCategories] = useState<any[]>([])
+  const [allCategories, setAllCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
+
   const [form, setForm] = useState({
     name: '',
     slug: '',
@@ -26,10 +29,14 @@ export default function AdminCategories() {
       .order('sort_order', { ascending: true })
     
     if (data) {
+      setAllCategories(data)
       // Create hierarchy for display
       const roots = data.filter(c => !c.parent_id)
       roots.forEach(r => {
         r.children = data.filter(c => c.parent_id === r.id).sort((a,b) => a.sort_order - b.sort_order)
+        r.children.forEach((child: any) => {
+          child.children = data.filter(c => c.parent_id === child.id).sort((a,b) => a.sort_order - b.sort_order)
+        })
       })
       setCategories(roots)
     }
@@ -44,11 +51,13 @@ export default function AdminCategories() {
 
   function handleAdd() {
     setEditingId('new')
+    setSlugManuallyEdited(false)
     setForm({ name: '', slug: '', parent_id: '', description: '', sort_order: '0', is_active: true })
   }
 
   function handleEdit(cat: any) {
     setEditingId(cat.id)
+    setSlugManuallyEdited(true)
     setForm({
       name: cat.name,
       slug: cat.slug,
@@ -67,6 +76,7 @@ export default function AdminCategories() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setSaving(true)
     const payload = {
       name: form.name,
       slug: form.slug,
@@ -76,12 +86,26 @@ export default function AdminCategories() {
       is_active: form.is_active
     }
 
+    let error;
     if (editingId === 'new') {
-      await supabase.from('categories').insert([payload])
+      const { error: insertError } = await supabase.from('categories').insert([payload])
+      error = insertError
     } else if (editingId) {
-      await supabase.from('categories').update(payload).eq('id', editingId)
+      const { error: updateError } = await supabase.from('categories').update(payload).eq('id', editingId)
+      error = updateError
     }
     
+    setSaving(false)
+
+    if (error) {
+      if (error.code === '23505') {
+        alert('Bu URL Slug ("' + form.slug + '") başka bir kategori tarafından kullanılıyor. Lütfen benzersiz bir kategori adı veya slug belirleyin.')
+      } else {
+        alert('Kategori kaydedilirken bir hata oluştu: ' + error.message)
+      }
+      return
+    }
+
     setEditingId(null)
     fetchCategories()
   }
@@ -137,20 +161,45 @@ export default function AdminCategories() {
                   {cat.children?.length > 0 && (
                     <div className="ml-6 pl-2 mt-1 mb-2 border-l-2 border-neutral-100 space-y-1">
                       {cat.children.map((child: any) => (
-                        <div key={child.id} className="flex items-center justify-between p-2.5 hover:bg-neutral-50 rounded-xl group transition-colors">
-                          <div className="flex items-center gap-3 pl-2">
-                             <div>
-                               <div className="flex items-center gap-2">
-                                <span className="font-medium text-neutral-700">{child.name}</span>
-                                {!child.is_active && <span className="bg-neutral-100 text-neutral-500 text-[10px] px-2 py-0.5 rounded font-bold uppercase">Pasif</span>}
+                        <div key={child.id}>
+                          <div className="flex items-center justify-between p-2.5 hover:bg-neutral-50 rounded-xl group transition-colors">
+                            <div className="flex items-center gap-3 pl-2">
+                               <div>
+                                 <div className="flex items-center gap-2">
+                                  <span className="font-medium text-neutral-700">{child.name}</span>
+                                  {!child.is_active && <span className="bg-neutral-100 text-neutral-500 text-[10px] px-2 py-0.5 rounded font-bold uppercase">Pasif</span>}
+                                 </div>
+                                 <span className="text-xs text-neutral-400 font-mono">/{cat.slug}/{child.slug}</span>
                                </div>
-                               <span className="text-xs text-neutral-400 font-mono">/{cat.slug}/{child.slug}</span>
-                             </div>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => handleEdit(child)} className="p-1.5 text-neutral-500 hover:text-primary-600 hover:bg-primary-50 rounded-md"><Pencil className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleDelete(child.id)} className="p-1.5 text-neutral-500 hover:text-red-600 hover:bg-red-50 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleEdit(child)} className="p-1.5 text-neutral-500 hover:text-primary-600 hover:bg-primary-50 rounded-md"><Pencil className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => handleDelete(child.id)} className="p-1.5 text-neutral-500 hover:text-red-600 hover:bg-red-50 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
-                          </div>
+                          
+                          {/* Grandchildren Categories */}
+                          {child.children?.length > 0 && (
+                            <div className="ml-6 pl-2 mt-1 mb-1 border-l-2 border-neutral-100 space-y-1">
+                              {child.children.map((grandchild: any) => (
+                                <div key={grandchild.id} className="flex items-center justify-between p-2 hover:bg-neutral-50 rounded-xl group transition-colors">
+                                  <div className="flex items-center gap-3 pl-2">
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm font-medium text-neutral-600">{grandchild.name}</span>
+                                          {!grandchild.is_active && <span className="bg-neutral-100 text-neutral-500 text-[10px] px-2 py-0.5 rounded font-bold uppercase">Pasif</span>}
+                                        </div>
+                                        <span className="text-xs text-neutral-400 font-mono">/{cat.slug}/{child.slug}/{grandchild.slug}</span>
+                                      </div>
+                                  </div>
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleEdit(grandchild)} className="p-1.5 text-neutral-500 hover:text-primary-600 hover:bg-primary-50 rounded-md"><Pencil className="w-3.5 h-3.5" /></button>
+                                    <button onClick={() => handleDelete(grandchild.id)} className="p-1.5 text-neutral-500 hover:text-red-600 hover:bg-red-50 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -172,13 +221,13 @@ export default function AdminCategories() {
                <div className="space-y-1.5">
                  <label className="text-sm font-medium text-neutral-700">Kategori Adı *</label>
                  <input type="text" value={form.name} onChange={e => {
-                   setForm({...form, name: e.target.value, slug: form.slug || generateSlug(e.target.value) })
+                   setForm({...form, name: e.target.value, slug: slugManuallyEdited ? form.slug : generateSlug(e.target.value) })
                  }} required className="input text-sm" />
                </div>
                
                <div className="space-y-1.5">
                  <label className="text-sm font-medium text-neutral-700">URL Slug *</label>
-                 <input type="text" value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} required className="input text-sm font-mono bg-neutral-50" />
+                 <input type="text" value={form.slug} onChange={e => { setSlugManuallyEdited(true); setForm({...form, slug: e.target.value}) }} required className="input text-sm font-mono bg-neutral-50" />
                </div>
 
                <div className="space-y-1.5">
@@ -186,7 +235,14 @@ export default function AdminCategories() {
                  <select value={form.parent_id} onChange={e => setForm({...form, parent_id: e.target.value})} className="input text-sm">
                    <option value="">(Ana Kategori)</option>
                    {categories.filter(c => c.id !== editingId).map(c => (
-                     <option key={c.id} value={c.id}>{c.name}</option>
+                     <optgroup key={c.id} label={c.name}>
+                       <option value={c.id}>{c.name}</option>
+                       {c.children?.filter((child: any) => child.id !== editingId).map((child: any) => (
+                         <option key={child.id} value={child.id}>
+                           {'  — ' + child.name}
+                         </option>
+                       ))}
+                     </optgroup>
                    ))}
                  </select>
                </div>
@@ -202,7 +258,9 @@ export default function AdminCategories() {
                </label>
 
                <div className="pt-4 border-t border-neutral-100 flex justify-end">
-                 <button type="submit" className="btn btn-primary w-full shadow-md"><Save className="w-4 h-4" /> Kaydet</button>
+                 <button type="submit" disabled={saving} className="btn btn-primary w-full shadow-md disabled:opacity-75 disabled:cursor-not-allowed">
+                   <Save className="w-4 h-4" /> {saving ? 'Kaydediliyor...' : 'Kaydet'}
+                 </button>
                </div>
              </form>
           </div>

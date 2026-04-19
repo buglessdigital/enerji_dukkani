@@ -47,6 +47,9 @@ export default function Navbar() {
         const rootCats = allCats.filter(c => !c.parent_id)
         rootCats.forEach(parent => {
           parent.children = allCats.filter(c => c.parent_id === parent.id)
+          parent.children.forEach((child: Category) => {
+            child.children = allCats.filter(c => c.parent_id === child.id)
+          })
         })
         setCategories(rootCats)
       }
@@ -292,13 +295,23 @@ export default function Navbar() {
                 {cat.children && cat.children.length > 0 && activeCategoryId === cat.id && (
                   <div className="absolute top-full left-0 w-56 bg-white rounded-b-xl shadow-dropdown border border-neutral-100 py-2 animate-slide-down z-50">
                     {cat.children.map((child) => (
-                      <Link
-                        key={child.id}
-                        href={`/kategori/${child.slug}`}
-                        className="block px-4 py-2.5 text-sm text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors"
-                      >
-                        {child.name}
-                      </Link>
+                      <div key={child.id}>
+                        <Link
+                          href={`/kategori/${child.slug}`}
+                          className="block px-4 py-2.5 text-sm text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                        >
+                          {child.name}
+                        </Link>
+                        {child.children && child.children.length > 0 && child.children.map((grandchild: Category) => (
+                          <Link
+                            key={grandchild.id}
+                            href={`/kategori/${grandchild.slug}`}
+                            className="block pl-8 pr-4 py-2 text-xs text-neutral-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                          >
+                            {grandchild.name}
+                          </Link>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 )}
@@ -365,14 +378,25 @@ export default function Navbar() {
                   activeCategoryId === cat.id && (
                     <div className="ml-4 border-l-2 border-primary-100 pl-3 space-y-0.5">
                       {cat.children.map((child) => (
-                        <Link
-                          key={child.id}
-                          href={`/kategori/${child.slug}`}
-                          className="block px-3 py-2 text-sm text-neutral-500 hover:text-primary-600 rounded-md transition-colors"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          {child.name}
-                        </Link>
+                        <div key={child.id}>
+                          <Link
+                            href={`/kategori/${child.slug}`}
+                            className="block px-3 py-2 text-sm text-neutral-500 hover:text-primary-600 rounded-md transition-colors"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            {child.name}
+                          </Link>
+                          {child.children && child.children.map((grandchild: Category) => (
+                            <Link
+                              key={grandchild.id}
+                              href={`/kategori/${grandchild.slug}`}
+                              className="block px-3 py-2 pl-6 text-xs text-neutral-400 hover:text-primary-600 rounded-md transition-colors"
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              {grandchild.name}
+                            </Link>
+                          ))}
+                        </div>
                       ))}
                     </div>
                   )}

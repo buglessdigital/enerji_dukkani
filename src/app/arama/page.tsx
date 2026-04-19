@@ -10,6 +10,7 @@ import { useCart } from '@/context/CartContext'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import WhatsAppButton from '@/components/common/WhatsAppButton'
+import SortDropdown from '@/components/common/SortDropdown'
 
 function SearchResults() {
   const searchParams = useSearchParams()
@@ -19,6 +20,13 @@ function SearchResults() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sortOption, setSortOption] = useState<'newest'|'price_asc'|'price_desc'>('newest')
+  const [currentPage, setCurrentPage] = useState(1)
+  const PRODUCTS_PER_PAGE = 18
+
+  function handleSortChange(v: string) {
+    setSortOption(v as any)
+    setCurrentPage(1)
+  }
 
   useEffect(() => {
     async function searchProducts() {
@@ -53,11 +61,14 @@ function SearchResults() {
   const sortedProducts = [...products].sort((a, b) => {
     const priceA = a.sale_price || a.price
     const priceB = b.sale_price || b.price
-    
+
     if (sortOption === 'price_asc') return priceA - priceB
     if (sortOption === 'price_desc') return priceB - priceA
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
+
+  const totalPages = Math.ceil(sortedProducts.length / PRODUCTS_PER_PAGE)
+  const paginatedProducts = sortedProducts.slice((currentPage - 1) * PRODUCTS_PER_PAGE, currentPage * PRODUCTS_PER_PAGE)
 
   function formatPrice(price: number) {
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 0 }).format(price)
@@ -94,18 +105,15 @@ function SearchResults() {
 
                <div className="flex items-center gap-3 w-full sm:w-auto">
                   <span className="text-sm text-neutral-500 whitespace-nowrap hidden sm:inline">Sırala:</span>
-                  <div className="relative w-full sm:w-64">
-                     <select 
-                       value={sortOption} 
-                       onChange={(e) => setSortOption(e.target.value as any)}
-                       className="appearance-none w-full bg-neutral-50 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-xl px-4 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 cursor-pointer"
-                     >
-                       <option value="newest">En Yeniler</option>
-                       <option value="price_asc">Fiyata Göre Artan</option>
-                       <option value="price_desc">Fiyata Göre Azalan</option>
-                     </select>
-                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
-                  </div>
+                  <SortDropdown
+                    value={sortOption}
+                    onChange={handleSortChange}
+                    options={[
+                      { value: 'newest', label: 'En Yeniler' },
+                      { value: 'price_asc', label: 'Fiyata Göre Artan' },
+                      { value: 'price_desc', label: 'Fiyata Göre Azalan' },
+                    ]}
+                  />
                </div>
             </div>
           )}
@@ -135,8 +143,9 @@ function SearchResults() {
               <Link href="/kategori" className="btn btn-outline mt-6">Tüm Ürünleri Gör</Link>
             </div>
           ) : (
+            <>
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 xl:gap-6">
-              {sortedProducts.map(product => {
+              {paginatedProducts.map(product => {
                 const coverImg = product.images?.find((img:any) => img.is_cover) || product.images?.[0]
                 const discount = product.sale_price && product.price > 0 ? Math.round(((product.price - product.sale_price) / product.price) * 100) : null
                 
@@ -194,6 +203,40 @@ function SearchResults() {
                 )
               })}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-10">
+                <button
+                  onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-xl border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ← Önceki
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                    className={`w-9 h-9 rounded-xl text-sm font-medium transition-colors ${
+                      page === currentPage
+                        ? 'bg-primary-600 text-white'
+                        : 'border border-neutral-200 text-neutral-600 hover:bg-neutral-100'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 rounded-xl border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Sonraki →
+                </button>
+              </div>
+            )}
+            </>
           )}
 
         </div>

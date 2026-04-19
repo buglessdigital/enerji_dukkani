@@ -1,16 +1,34 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, User, MapPin, Package, LogOut, Settings, Plus, Trash2, Pencil, ChevronRight } from 'lucide-react'
+import { Eye, EyeOff, User, MapPin, Package, LogOut, Settings, Plus, Trash2, Pencil, ChevronRight, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 
-export default function AccountPage() {
+const EMPTY_ADDRESS = {
+  label: '',
+  full_name: '',
+  phone: '',
+  city: '',
+  district: '',
+  neighborhood: '',
+  address_line: '',
+  zip_code: '',
+  is_default: false,
+  address_type: 'home' as 'home' | 'work' | 'other',
+}
+
+function AccountPageInner() {
+  const searchParams = useSearchParams()
   const [session, setSession] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'addresses'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'addresses'>(
+    (searchParams.get('tab') as 'profile' | 'orders' | 'addresses') || 'profile'
+  )
 
   // Auth State
   const [isLogin, setIsLogin] = useState(true)
@@ -25,31 +43,38 @@ export default function AccountPage() {
   const [profile, setProfile] = useState<any>(null)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSuccess, setProfileSuccess] = useState('')
+  const [resetSending, setResetSending] = useState(false)
+  const [resetMessage, setResetMessage] = useState('')
 
   // Addresses State
   const [addresses, setAddresses] = useState<any[]>([])
+  const [addressModal, setAddressModal] = useState(false)
+  const [editingAddress, setEditingAddress] = useState<any>(null)
+  const [addressForm, setAddressForm] = useState({ ...EMPTY_ADDRESS })
+  const [addressSaving, setAddressSaving] = useState(false)
+  const [addressError, setAddressError] = useState('')
 
   // Orders State
   const [orders, setOrders] = useState<any[]>([])
 
   useEffect(() => {
     async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
       setSession(session)
-      
+
       if (session) {
-         fetchProfile(session.user.id)
-         fetchAddresses(session.user.id)
-         fetchOrders(session.user.id)
+        fetchProfile(session.user.id)
+        fetchAddresses(session.user.id)
+        fetchOrders(session.user.id)
       }
       setLoading(false)
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
         setSession(session)
         if (session) {
-           fetchProfile(session.user.id)
-           fetchAddresses(session.user.id)
-           fetchOrders(session.user.id)
+          fetchProfile(session.user.id)
+          fetchAddresses(session.user.id)
+          fetchOrders(session.user.id)
         }
       })
       return () => subscription.unsubscribe()
@@ -63,7 +88,7 @@ export default function AccountPage() {
   }
 
   async function fetchAddresses(userId: string) {
-    const { data } = await supabase.from('addresses').select('*').eq('user_id', userId)
+    const { data } = await supabase.from('addresses').select('*').eq('user_id', userId).order('is_default', { ascending: false }).order('created_at', { ascending: false })
     if (data) setAddresses(data)
   }
 
@@ -78,10 +103,10 @@ export default function AccountPage() {
     setAuthError('')
 
     if (isLogin) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error } = await supabaseBrowser.auth.signInWithPassword({ email, password })
       if (error) setAuthError(error.message)
     } else {
-      const { error } = await supabase.auth.signUp({
+      const { error } = await supabaseBrowser.auth.signUp({
         email, password,
         options: { data: { full_name: name, role: 'customer' } }
       })
@@ -94,20 +119,15 @@ export default function AccountPage() {
   const handleGoogleLogin = async () => {
     setAuthLoading(true)
     setAuthError('')
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabaseBrowser.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/hesabim`
-      }
+      options: { redirectTo: `${window.location.origin}/hesabim` }
     })
-    if (error) {
-      setAuthError(error.message)
-      setAuthLoading(false)
-    }
+    if (error) { setAuthError(error.message); setAuthLoading(false) }
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await supabaseBrowser.auth.signOut()
     setSession(null)
   }
 
@@ -124,9 +144,68 @@ export default function AccountPage() {
   }
 
   const deleteAddress = async (id: string) => {
-    if(!confirm('Silmek istediğinizden emin misiniz?')) return
+    if (!confirm('Silmek istediğinizden emin misiniz?')) return
     await supabase.from('addresses').delete().eq('id', id)
     fetchAddresses(session.user.id)
+  }
+
+  function openAddModal() {
+    setEditingAddress(null)
+    setAddressForm({ ...EMPTY_ADDRESS })
+    setAddressError('')
+    setAddressModal(true)
+  }
+
+  function openEditModal(address: any) {
+    setEditingAddress(address)
+    setAddressForm({
+      label: address.label || '',
+      full_name: address.full_name || '',
+      phone: address.phone || '',
+      city: address.city || '',
+      district: address.district || '',
+      neighborhood: address.neighborhood || '',
+      address_line: address.address_line || '',
+      zip_code: address.zip_code || '',
+      is_default: address.is_default || false,
+      address_type: address.address_type || 'home',
+    })
+    setAddressError('')
+    setAddressModal(true)
+  }
+
+  const handleAddressSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAddressSaving(true)
+    setAddressError('')
+
+    // Varsayılan yapılıyorsa önce diğerlerini sıfırla
+    if (addressForm.is_default) {
+      await supabase.from('addresses').update({ is_default: false }).eq('user_id', session.user.id)
+    }
+
+    let error
+    if (editingAddress) {
+      const result = await supabase.from('addresses').update({
+        ...addressForm,
+        updated_at: new Date().toISOString(),
+      }).eq('id', editingAddress.id)
+      error = result.error
+    } else {
+      const result = await supabase.from('addresses').insert({
+        ...addressForm,
+        user_id: session.user.id,
+      })
+      error = result.error
+    }
+
+    setAddressSaving(false)
+    if (error) {
+      setAddressError('Adres kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.')
+    } else {
+      setAddressModal(false)
+      fetchAddresses(session.user.id)
+    }
   }
 
   if (loading) {
@@ -143,7 +222,7 @@ export default function AccountPage() {
   return (
     <>
       <Navbar />
-      
+
       <main className="pt-[104px] lg:pt-[140px] bg-neutral-50 min-h-screen pb-20">
         <div className="container-custom">
           {!session ? (
@@ -202,10 +281,10 @@ export default function AccountPage() {
                     <div className="flex-grow border-t border-neutral-200"></div>
                   </div>
 
-                  <button 
-                    type="button" 
-                    onClick={handleGoogleLogin} 
-                    disabled={authLoading} 
+                  <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={authLoading}
                     className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-neutral-200 rounded-xl hover:bg-neutral-50 transition-colors font-bold text-neutral-700"
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -221,7 +300,7 @@ export default function AccountPage() {
                 <div className="mt-8 pt-8 border-t border-neutral-100 text-center">
                   <p className="text-sm text-neutral-600">
                     {isLogin ? 'Hesabınız yok mu?' : 'Zaten hesabınız var mı?'}
-                    <button type="button" onClick={() => {setIsLogin(!isLogin); setAuthError('')}} className="ml-1 font-bold text-primary-600 hover:underline">
+                    <button type="button" onClick={() => { setIsLogin(!isLogin); setAuthError('') }} className="ml-1 font-bold text-primary-600 hover:underline">
                       {isLogin ? 'Hemen Üye Ol' : 'Giriş Yap'}
                     </button>
                   </p>
@@ -231,7 +310,7 @@ export default function AccountPage() {
           ) : (
             /* Dashboard Layout */
             <div className="flex flex-col lg:flex-row gap-8">
-              
+
               {/* Sidebar Menu */}
               <div className="lg:w-1/4">
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-neutral-100 sticky top-32">
@@ -264,13 +343,13 @@ export default function AccountPage() {
 
               {/* Main Content Area */}
               <div className="lg:w-3/4">
-                
+
                 {/* Profile Tab */}
                 {activeTab === 'profile' && profile && (
                   <div className="bg-white rounded-3xl p-6 lg:p-10 shadow-sm border border-neutral-100 animate-slide-up">
                     <h2 className="text-2xl font-bold text-neutral-900 font-heading mb-6">Profil Bilgilerim</h2>
                     {profileSuccess && <div className="p-4 bg-green-50 text-green-700 rounded-xl text-sm font-medium mb-6">{profileSuccess}</div>}
-                    
+
                     <form onSubmit={handleUpdateProfile} className="space-y-5 max-w-xl">
                       <div className="space-y-1.5">
                         <label className="text-sm font-medium text-neutral-700">E-Posta (Değiştirilemez)</label>
@@ -278,20 +357,40 @@ export default function AccountPage() {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-sm font-medium text-neutral-700">Ad Soyad</label>
-                        <input type="text" value={profile.full_name || ''} onChange={e => setProfile({...profile, full_name: e.target.value})} className="input" />
+                        <input type="text" value={profile.full_name || ''} onChange={e => setProfile({ ...profile, full_name: e.target.value })} className="input" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-sm font-medium text-neutral-700">Telefon Numarası</label>
-                        <input type="text" value={profile.phone || ''} onChange={e => setProfile({...profile, phone: e.target.value})} className="input" placeholder="05XXXXXXXXX" />
+                        <input type="text" value={profile.phone || ''} onChange={e => setProfile({ ...profile, phone: e.target.value })} className="input" placeholder="05XXXXXXXXX" />
                       </div>
                       <button type="submit" disabled={savingProfile} className="btn btn-primary mt-4 px-8">
                         {savingProfile ? 'Kaydediliyor...' : 'Bilgilerimi Güncelle'}
                       </button>
                     </form>
-                    
+
                     <div className="mt-10 pt-10 border-t border-neutral-100 max-w-xl">
                       <h3 className="text-lg font-bold text-neutral-900 mb-4">Şifre Değiştir</h3>
-                      <button className="btn btn-outline text-sm">Şifre Sıfırlama Bağlantısı Gönder</button>
+                      {resetMessage && (
+                        <div className={`p-4 rounded-xl text-sm font-medium mb-4 ${resetMessage.includes('gönderildi') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                          {resetMessage}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        disabled={resetSending}
+                        onClick={async () => {
+                          setResetSending(true)
+                          setResetMessage('')
+                          const { error } = await supabaseBrowser.auth.resetPasswordForEmail(session.user.email, {
+                            redirectTo: `${window.location.origin}/hesabim/sifre-guncelle`,
+                          })
+                          setResetMessage(error ? 'Bir hata oluştu, lütfen tekrar deneyin.' : 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.')
+                          setResetSending(false)
+                        }}
+                        className="btn btn-outline text-sm"
+                      >
+                        {resetSending ? 'Gönderiliyor...' : 'Şifre Sıfırlama Bağlantısı Gönder'}
+                      </button>
                     </div>
                   </div>
                 )}
@@ -301,27 +400,48 @@ export default function AccountPage() {
                   <div className="bg-white rounded-3xl p-6 lg:p-10 shadow-sm border border-neutral-100 animate-slide-up">
                     <div className="flex items-center justify-between mb-8">
                       <h2 className="text-2xl font-bold text-neutral-900 font-heading">Kayıtlı Adreslerim</h2>
-                      <button className="btn btn-primary btn-sm"><Plus className="w-4 h-4" /> Yeni Adres Ekle</button>
+                      <button onClick={openAddModal} className="btn btn-primary btn-sm">
+                        <Plus className="w-4 h-4" /> Yeni Adres Ekle
+                      </button>
                     </div>
-                    
+
                     {addresses.length === 0 ? (
                       <div className="text-center py-12 bg-neutral-50 rounded-2xl border border-neutral-100 border-dashed">
                         <MapPin className="w-10 h-10 mx-auto text-neutral-300 mb-3" />
-                        <p className="text-neutral-500">Henüz kayıtlı bir adresiniz bulunmuyor.</p>
+                        <p className="text-neutral-500 mb-4">Henüz kayıtlı bir adresiniz bulunmuyor.</p>
+                        <button onClick={openAddModal} className="btn btn-outline btn-sm">İlk Adresimi Ekle</button>
                       </div>
                     ) : (
                       <div className="grid md:grid-cols-2 gap-4">
                         {addresses.map(address => (
                           <div key={address.id} className="border border-neutral-200 rounded-2xl p-5 hover:border-primary-300 transition-colors bg-white relative group">
-                            {address.is_default && <span className="absolute -top-3 -right-3 bg-primary-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-sm">Varsayılan</span>}
-                            <h3 className="font-bold text-neutral-900 mb-1">{address.title}</h3>
+                            {address.is_default && (
+                              <span className="absolute -top-3 left-4 bg-primary-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">Varsayılan</span>
+                            )}
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <h3 className="font-bold text-neutral-900">{address.label}</h3>
+                              <span className="text-xs font-medium text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded-full shrink-0">
+                                {address.address_type === 'home' ? 'Ev' : address.address_type === 'work' ? 'İş' : 'Diğer'}
+                              </span>
+                            </div>
                             <p className="text-sm font-medium text-neutral-700">{address.full_name}</p>
-                            <p className="text-sm text-neutral-500 mt-2 mb-3 leading-relaxed whitespace-pre-line">{address.address_line}</p>
+                            <p className="text-sm text-neutral-500 mt-1">{address.phone}</p>
+                            <p className="text-sm text-neutral-500 mt-2 mb-3 leading-relaxed">{address.address_line}</p>
                             <p className="text-sm font-medium text-neutral-800">{address.district} / {address.city}</p>
-                            
+
                             <div className="flex items-center gap-3 mt-5 pt-4 border-t border-neutral-100">
-                              <button className="text-sm text-primary-600 font-medium hover:underline flex items-center gap-1"><Pencil className="w-3.5 h-3.5"/> Düzenle</button>
-                              <button onClick={() => deleteAddress(address.id)} className="text-sm text-red-500 font-medium hover:underline flex items-center gap-1"><Trash2 className="w-3.5 h-3.5"/> Sil</button>
+                              <button
+                                onClick={() => openEditModal(address)}
+                                className="text-sm text-primary-600 font-medium hover:underline flex items-center gap-1"
+                              >
+                                <Pencil className="w-3.5 h-3.5" /> Düzenle
+                              </button>
+                              <button
+                                onClick={() => deleteAddress(address.id)}
+                                className="text-sm text-red-500 font-medium hover:underline flex items-center gap-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Sil
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -334,7 +454,7 @@ export default function AccountPage() {
                 {activeTab === 'orders' && (
                   <div className="bg-white rounded-3xl p-6 lg:p-10 shadow-sm border border-neutral-100 animate-slide-up">
                     <h2 className="text-2xl font-bold text-neutral-900 font-heading mb-8">Siparişlerim</h2>
-                    
+
                     {orders.length === 0 ? (
                       <div className="text-center py-16 bg-neutral-50 rounded-2xl border border-neutral-100 border-dashed">
                         <Package className="w-12 h-12 mx-auto text-neutral-300 mb-3" />
@@ -357,7 +477,7 @@ export default function AccountPage() {
                                       'bg-red-100 text-red-700'}
                                   `}>
                                     {order.status === 'pending' ? 'Onay Bekliyor' :
-                                     order.status === 'processing' ? 'Siparişiniz Hazırlanıyor' :
+                                     order.status === 'processing' ? 'Hazırlanıyor' :
                                      order.status === 'shipped' ? 'Kargoya Verildi' :
                                      order.status === 'delivered' ? 'Teslim Edildi' : 'İptal Edildi'}
                                   </span>
@@ -371,10 +491,10 @@ export default function AccountPage() {
                                 </p>
                               </div>
                             </div>
-                            
+
                             <div className="flex items-center justify-between">
-                               <p className="text-sm text-neutral-700"><span className="font-bold">{order.items[0]?.count || 0}</span> farklı ürün bulunuyor.</p>
-                               <button className="btn btn-outline btn-sm">Detayları Gör</button>
+                              <p className="text-sm text-neutral-700"><span className="font-bold">{order.items[0]?.count || 0}</span> farklı ürün bulunuyor.</p>
+                              <Link href={`/hesabim/siparis/${order.id}`} className="btn btn-outline btn-sm">Detayları Gör</Link>
                             </div>
                           </div>
                         ))}
@@ -386,10 +506,181 @@ export default function AccountPage() {
               </div>
             </div>
           )}
-
         </div>
       </main>
+
+      {/* Address Modal */}
+      {addressModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setAddressModal(false)} />
+          <div className="relative bg-white w-full sm:max-w-xl sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-100 shrink-0">
+              <h3 className="text-lg font-bold text-neutral-900 font-heading">
+                {editingAddress ? 'Adresi Düzenle' : 'Yeni Adres Ekle'}
+              </h3>
+              <button onClick={() => setAddressModal(false)} className="w-9 h-9 rounded-xl bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors">
+                <X className="w-5 h-5 text-neutral-600" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleAddressSave} className="overflow-y-auto">
+              <div className="p-6 space-y-4">
+
+                {/* Adres Etiketi + Tür */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-neutral-700">Adres Başlığı <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ev, İş..."
+                      value={addressForm.label}
+                      onChange={e => setAddressForm(f => ({ ...f, label: e.target.value }))}
+                      className="input"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-neutral-700">Adres Türü</label>
+                    <select
+                      value={addressForm.address_type}
+                      onChange={e => setAddressForm(f => ({ ...f, address_type: e.target.value as any }))}
+                      className="input"
+                    >
+                      <option value="home">Ev</option>
+                      <option value="work">İş</option>
+                      <option value="other">Diğer</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Ad Soyad + Telefon */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-neutral-700">Ad Soyad <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      required
+                      value={addressForm.full_name}
+                      onChange={e => setAddressForm(f => ({ ...f, full_name: e.target.value }))}
+                      className="input"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-neutral-700">Telefon <span className="text-red-500">*</span></label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="05XXXXXXXXX"
+                      value={addressForm.phone}
+                      onChange={e => setAddressForm(f => ({ ...f, phone: e.target.value }))}
+                      className="input"
+                    />
+                  </div>
+                </div>
+
+                {/* Şehir + İlçe */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-neutral-700">Şehir <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="İstanbul"
+                      value={addressForm.city}
+                      onChange={e => setAddressForm(f => ({ ...f, city: e.target.value }))}
+                      className="input"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-neutral-700">İlçe <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      required
+                      value={addressForm.district}
+                      onChange={e => setAddressForm(f => ({ ...f, district: e.target.value }))}
+                      className="input"
+                    />
+                  </div>
+                </div>
+
+                {/* Mahalle + Posta Kodu */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-neutral-700">Mahalle</label>
+                    <input
+                      type="text"
+                      value={addressForm.neighborhood}
+                      onChange={e => setAddressForm(f => ({ ...f, neighborhood: e.target.value }))}
+                      className="input"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-neutral-700">Posta Kodu</label>
+                    <input
+                      type="text"
+                      placeholder="34000"
+                      value={addressForm.zip_code}
+                      onChange={e => setAddressForm(f => ({ ...f, zip_code: e.target.value }))}
+                      className="input"
+                    />
+                  </div>
+                </div>
+
+                {/* Açık Adres */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-neutral-700">Açık Adres <span className="text-red-500">*</span></label>
+                  <textarea
+                    required
+                    rows={3}
+                    placeholder="Sokak, apartman, kat, daire..."
+                    value={addressForm.address_line}
+                    onChange={e => setAddressForm(f => ({ ...f, address_line: e.target.value }))}
+                    className="input resize-none"
+                  />
+                </div>
+
+                {/* Varsayılan */}
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={addressForm.is_default}
+                    onChange={e => setAddressForm(f => ({ ...f, is_default: e.target.checked }))}
+                    className="w-4 h-4 accent-primary-600 rounded"
+                  />
+                  <span className="text-sm font-medium text-neutral-700">Varsayılan adres olarak ayarla</span>
+                </label>
+
+                {addressError && (
+                  <p className="text-sm text-red-600 bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">{addressError}</p>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 border-t border-neutral-100 flex gap-3 shrink-0">
+                <button type="button" onClick={() => setAddressModal(false)} className="btn btn-outline flex-1">
+                  İptal
+                </button>
+                <button type="submit" disabled={addressSaving} className="btn btn-primary flex-1">
+                  {addressSaving ? 'Kaydediliyor...' : (editingAddress ? 'Güncelle' : 'Adresi Kaydet')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </>
+  )
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense>
+      <AccountPageInner />
+    </Suspense>
   )
 }

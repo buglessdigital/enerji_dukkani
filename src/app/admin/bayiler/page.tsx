@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Check, X, Building2, MapPin, Phone, Mail, FileText, Download } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabaseBrowser as supabase } from '@/lib/supabase-browser'
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })

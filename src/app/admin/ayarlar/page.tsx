@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Save, Loader2, Info } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabaseBrowser as supabase } from '@/lib/supabase-browser'
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -18,7 +18,19 @@ export default function SettingsPage() {
     footer_logo_url: '', favicon_url: '',
     instagram_url: '', linkedin_url: '', facebook_url: '', youtube_url: '', twitter_url: '',
     shipping_free_threshold: '500', shipping_flat_rate: '0',
+    usd_exchange_rate: '35.0',
     maintenance_mode: false,
+    feature_shipping_title: 'Ücretsiz & Hızlı Kargo',
+    feature_shipping_desc: 'Özenle paketlenmiş sigortalı gönderim',
+    feature_guarantee_title: 'Orijinal Ürün Garantisi',
+    feature_guarantee_desc: 'Resmi distribütör veya üretici garantisi',
+    feature_return_title: 'Kolay İade & Değişim',
+    feature_return_desc: '14 gün içerisinde koşulsuz iade hakkı',
+    delivery_shipping_text: 'Siparişleriniz, onaylandıktan sonra 1-3 iş günü içerisinde kargoya teslim edilmektedir.',
+    delivery_return_text: 'Satın aldığınız ürünleri, teslimat tarihinden itibaren 14 gün içerisinde iade edebilirsiniz.',
+    hero_fallback_badge: 'Enerji Çözümleri',
+    hero_fallback_title: 'Güneş Enerjisi ile Geleceği Aydınlatın',
+    hero_fallback_description: 'Yüksek verimli güneş panelleri ve inverter sistemleri ile enerji maliyetlerinizi düşürün.',
   })
 
   useEffect(() => {
@@ -33,6 +45,7 @@ export default function SettingsPage() {
           ...sanitizedData,
           shipping_free_threshold: data.shipping_free_threshold?.toString() || '0',
           shipping_flat_rate: data.shipping_flat_rate?.toString() || '0',
+          usd_exchange_rate: data.usd_exchange_rate?.toString() || '35.0',
         }))
       }
       setLoading(false)
@@ -84,6 +97,7 @@ export default function SettingsPage() {
       ...form,
       shipping_free_threshold: parseFloat(form.shipping_free_threshold) || 0,
       shipping_flat_rate: parseFloat(form.shipping_flat_rate) || 0,
+      usd_exchange_rate: parseFloat(form.usd_exchange_rate) || 35.0,
     }
 
     const { error: updateError } = await supabase.from('site_settings').update(updates).eq('id', (form as any).id)
@@ -217,6 +231,25 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Currency Settings */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
+          <div>
+            <h2 className="text-lg font-bold text-neutral-900">Döviz Kuru</h2>
+            <p className="text-xs text-neutral-500 mt-1">Ürün fiyatları dolar cinsinden girildiğinde TL'ye çevirmek için kullanılır.</p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-neutral-700">1 USD = ? TL</label>
+              <div className="flex rounded-lg border border-neutral-200 overflow-hidden">
+                <span className="px-3 flex items-center bg-neutral-100 text-neutral-500 text-sm font-bold border-r border-neutral-200 whitespace-nowrap">$1 =</span>
+                <input type="number" name="usd_exchange_rate" value={form.usd_exchange_rate} onChange={handleChange} className="flex-1 px-3 py-2 text-sm outline-none" min="0" step="0.01" />
+                <span className="px-3 flex items-center bg-neutral-100 text-neutral-500 text-sm font-bold border-l border-neutral-200 whitespace-nowrap">₺</span>
+              </div>
+              <p className="text-xs text-neutral-500">Ürün formunda USD seçildiğinde bu kur üzerinden TL fiyat hesaplanır.</p>
+            </div>
+          </div>
+        </div>
+
         {/* E-commerce Settings */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
           <h2 className="text-lg font-bold text-neutral-900">E-Ticaret Operasyon</h2>
@@ -230,6 +263,49 @@ export default function SettingsPage() {
               <label className="text-sm font-medium text-neutral-700">Standart Kargo Ücreti (₺)</label>
               <input type="number" name="shipping_flat_rate" value={form.shipping_flat_rate} onChange={handleChange} className="input" min="0" step="0.01" />
             </div>
+          </div>
+        </div>
+
+        {/* Hero Slider Fallback */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
+          <div>
+            <h2 className="text-lg font-bold text-neutral-900">Ana Sayfa Hero — Yedek İçerik</h2>
+            <p className="text-xs text-neutral-500 mt-1">Slider'da hiç aktif slayt yokken gösterilecek içerik.</p>
+          </div>
+          <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Rozet Metni</label><input type="text" name="hero_fallback_badge" value={form.hero_fallback_badge} onChange={handleChange} className="input" placeholder="Enerji Çözümleri" /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Başlık</label><input type="text" name="hero_fallback_title" value={form.hero_fallback_title} onChange={handleChange} className="input" /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Açıklama</label><textarea name="hero_fallback_description" value={form.hero_fallback_description} onChange={handleChange} rows={2} className="input resize-y" /></div>
+        </div>
+
+        {/* Product Feature Highlights */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
+          <div>
+            <h2 className="text-lg font-bold text-neutral-900">Ürün Detayı — Öne Çıkan Özellikler</h2>
+            <p className="text-xs text-neutral-500 mt-1">Ürün sayfasında görünen 3 kutucuğun başlık ve alt metinleri.</p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Kargo Başlığı</label><input type="text" name="feature_shipping_title" value={form.feature_shipping_title} onChange={handleChange} className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Kargo Alt Metin</label><input type="text" name="feature_shipping_desc" value={form.feature_shipping_desc} onChange={handleChange} className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Garanti Başlığı</label><input type="text" name="feature_guarantee_title" value={form.feature_guarantee_title} onChange={handleChange} className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">Garanti Alt Metin</label><input type="text" name="feature_guarantee_desc" value={form.feature_guarantee_desc} onChange={handleChange} className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">İade Başlığı</label><input type="text" name="feature_return_title" value={form.feature_return_title} onChange={handleChange} className="input" /></div>
+            <div className="space-y-1.5"><label className="text-sm font-medium text-neutral-700">İade Alt Metin</label><input type="text" name="feature_return_desc" value={form.feature_return_desc} onChange={handleChange} className="input" /></div>
+          </div>
+        </div>
+
+        {/* Delivery & Return Texts */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
+          <div>
+            <h2 className="text-lg font-bold text-neutral-900">Ürün Detayı — Teslimat ve İade Sekmesi</h2>
+            <p className="text-xs text-neutral-500 mt-1">Ürün sayfasındaki "Teslimat ve İade" sekmesinin içerik metinleri.</p>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-neutral-700">Gönderim Süreci Metni</label>
+            <textarea name="delivery_shipping_text" value={form.delivery_shipping_text} onChange={handleChange} rows={4} className="input resize-y" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-neutral-700">İade Koşulları Metni</label>
+            <textarea name="delivery_return_text" value={form.delivery_return_text} onChange={handleChange} rows={4} className="input resize-y" />
           </div>
         </div>
 

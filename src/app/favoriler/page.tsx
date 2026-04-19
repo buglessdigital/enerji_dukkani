@@ -109,13 +109,13 @@ export default function FavoritesPage() {
                 return (
                   <div key={product.id} className="bg-white rounded-2xl border border-neutral-100 shadow-sm overflow-hidden group hover:border-primary-200 transition-colors flex flex-col">
                      {/* Image */}
-                     <Link href={`/urun/${product.slug}`} className="relative aspect-square bg-neutral-100 p-4 block cursor-pointer">
+                     <Link href={`/urun/${product.slug}`} className="relative aspect-[4/3] bg-neutral-100 block cursor-pointer overflow-hidden">
                         {cover?.url ? (
-                            <Image 
-                              src={cover.url} 
-                              alt={product.name} 
-                              fill 
-                              className="object-contain p-4 group-hover:scale-105 transition-transform duration-500" 
+                            <Image
+                              src={cover.url}
+                              alt={product.name}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform duration-500"
                               sizes="(max-width: 768px) 100vw, 25vw"
                             />
                         ) : (

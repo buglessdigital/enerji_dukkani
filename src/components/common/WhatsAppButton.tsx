@@ -27,7 +27,7 @@ export default function WhatsAppButton() {
 
   if (!enabled || !phoneNumber) return null
 
-  const cleanNumber = phoneNumber.replace(/\s/g, '').replace(/\+/g, '')
+  const cleanNumber = phoneNumber.replace(/\s/g, '').replace(/^\+/, '').replace(/^0/, '90')
   const message = encodeURIComponent(
     'Merhaba, enerji ürünleri hakkında bilgi almak istiyorum.'
   )
@@ -80,7 +80,7 @@ export default function WhatsAppButton() {
           className="flex flex-1 items-center justify-center gap-2 h-12 rounded-full bg-primary-600 text-white font-semibold text-sm active:bg-primary-700 transition-colors shadow-md shadow-primary-200"
         >
           <Phone className="w-[18px] h-[18px]" />
-          Sizi Arayalım
+          Bizi Arayın
         </a>
       </div>
     </>

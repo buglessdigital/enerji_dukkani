@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Plus, X, Upload, Loader2 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabaseBrowser as supabase } from '@/lib/supabase-browser'
 import dynamic from 'next/dynamic'
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { 
@@ -18,6 +18,8 @@ export default function AddProductPage() {
   const router = useRouter()
   const [categories, setCategories] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
+  const [usdRate, setUsdRate] = useState<number>(35.0)
+  const [priceCurrency, setPriceCurrency] = useState<'TRY' | 'USD'>('TRY')
   const [form, setForm] = useState({
     name: '', slug: '', brand: '', category_id: '', sku: '',
     price: '', sale_price: '', cost_price: '', dealer_price: '',
@@ -27,13 +29,16 @@ export default function AddProductPage() {
     meta_title: '', meta_description: '',
   })
   const [specs, setSpecs] = useState<{ key: string; value: string }[]>([])
-  const [images, setImages] = useState<{file: File, preview: string, is_cover: boolean}[]>([])
+  const [coverImage, setCoverImage] = useState<{file: File, preview: string} | null>(null)
+  const [detailImages, setDetailImages] = useState<{file: File, preview: string}[]>([])
   const [uploadingImages, setUploadingImages] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     supabase.from('categories').select('id, name, parent_id').eq('is_active', true)
       .order('sort_order').then(({ data }) => setCategories(data || []))
+    supabase.from('site_settings').select('usd_exchange_rate').limit(1).single()
+      .then(({ data }) => { if (data?.usd_exchange_rate) setUsdRate(Number(data.usd_exchange_rate)) })
   }, [])
 
   function generateSlug(name: string) {
@@ -62,14 +67,21 @@ export default function AddProductPage() {
     setSaving(true)
     setError('')
 
+    const rawPrice = parseFloat(form.price) || 0
+    const tlPrice = priceCurrency === 'USD' ? parseFloat((rawPrice * usdRate).toFixed(2)) : rawPrice
+    const rawSale = form.sale_price ? parseFloat(form.sale_price) : null
+    const tlSale = rawSale !== null ? (priceCurrency === 'USD' ? parseFloat((rawSale * usdRate).toFixed(2)) : rawSale) : null
+
     const { data, error: insertError } = await supabase.from('products').insert([{
       name: form.name,
       slug: form.slug,
       brand: form.brand || null,
       category_id: form.category_id || null,
       sku: form.sku || null,
-      price: parseFloat(form.price) || 0,
-      sale_price: form.sale_price ? parseFloat(form.sale_price) : null,
+      price: tlPrice,
+      price_usd: priceCurrency === 'USD' ? rawPrice : null,
+      price_currency: priceCurrency,
+      sale_price: tlSale,
       cost_price: form.cost_price ? parseFloat(form.cost_price) : null,
       dealer_price: form.dealer_price ? parseFloat(form.dealer_price) : null,
       discount_percent: form.discount_percent ? parseFloat(form.discount_percent) : null,
@@ -92,12 +104,15 @@ export default function AddProductPage() {
     const productId = data.id
 
     // Görselleri Yükle
-    if (images.length > 0) {
+    const allImages = [
+      ...(coverImage ? [{ file: coverImage.file, is_cover: true }] : []),
+      ...detailImages.map(img => ({ file: img.file, is_cover: false })),
+    ]
+    if (allImages.length > 0) {
       setUploadingImages(true)
-      for (let i = 0; i < images.length; i++) {
-        const item = images[i]
-        const fileExt = 'webp'
-        const fileName = `${productId}_${Date.now()}_${i}.${fileExt}`
+      for (let i = 0; i < allImages.length; i++) {
+        const item = allImages[i]
+        const fileName = `${productId}_${Date.now()}_${i}.webp`
         const filePath = `products/${fileName}`
 
         const { error: uploadError } = await supabase.storage
@@ -106,7 +121,6 @@ export default function AddProductPage() {
 
         if (!uploadError) {
           const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(filePath)
-          
           await supabase.from('product_images').insert([{
             product_id: productId,
             url: publicUrl,
@@ -115,7 +129,7 @@ export default function AddProductPage() {
           }])
         } else {
           console.error("Storage upload error:", uploadError)
-          alert("Ürün görselleri yüklenemedi! Lütfen Supabase'de 'product_images' bucket'ının oluşturulduğundan ve PUBLIC erişime (Insert dâhil) açık olduğundan emin olun.")
+          alert("Ürün görselleri yüklenemedi! Supabase'de 'product-images' bucket'ı kontrol edin.")
         }
       }
     }
@@ -123,24 +137,21 @@ export default function AddProductPage() {
     router.push('/admin/urunler')
   }
 
-  async function handleImageAdd(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files?.length) return
-    
-    const newImages = [...images]
-    for (let i = 0; i < e.target.files.length; i++) {
-        const file = e.target.files[i]
-        const webpFile = await convertToWebP(file, 1200, 0.85) // Convert to webp locally
-        newImages.push({
-            file: webpFile as any, // File or Blob is fine for supabase upload
-            preview: URL.createObjectURL(webpFile),
-            is_cover: newImages.length === 0, // First image is cover by default
-        })
-    }
-    setImages(newImages)
+  async function handleCoverImageAdd(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const webpFile = await convertToWebP(file, 800, 0.88)
+    setCoverImage({ file: webpFile, preview: URL.createObjectURL(webpFile) })
   }
 
-  function setCoverImage(index: number) {
-      setImages(images.map((img, i) => ({ ...img, is_cover: i === index })))
+  async function handleDetailImagesAdd(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files?.length) return
+    const newImages = [...detailImages]
+    for (let i = 0; i < e.target.files.length; i++) {
+      const webpFile = await convertToWebP(e.target.files[i], 1200, 0.85)
+      newImages.push({ file: webpFile, preview: URL.createObjectURL(webpFile) })
+    }
+    setDetailImages(newImages)
   }
 
   return (
@@ -162,36 +173,76 @@ export default function AddProductPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-neutral-900">Ürün Görselleri</h2>
-            <label className="btn btn-sm btn-outline cursor-pointer">
-              <Upload className="w-4 h-4" /> Görsel Ekle
-              <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageAdd} />
-            </label>
+          <h2 className="text-lg font-bold text-neutral-900">Ürün Görselleri</h2>
+
+          {/* Kapak Görseli */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-neutral-800">Kapak Görseli <span className="text-red-500">*</span></p>
+                <p className="text-xs text-neutral-400">800 × 800 px · Kare · Beyaz/açık arka plan</p>
+              </div>
+              <label className="btn btn-sm btn-outline cursor-pointer">
+                <Upload className="w-4 h-4" /> {coverImage ? 'Değiştir' : 'Görsel Seç'}
+                <input type="file" accept="image/*" className="hidden" onChange={handleCoverImageAdd} />
+              </label>
+            </div>
+            {coverImage ? (
+              <div className="relative w-40 aspect-square rounded-xl overflow-hidden border-2 border-primary-500 shadow-md">
+                <img src={coverImage.preview} alt="Kapak" className="w-full h-full object-cover" />
+                <button type="button" onClick={() => setCoverImage(null)}
+                  className="absolute top-1.5 right-1.5 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+                <div className="absolute bottom-0 left-0 right-0 bg-primary-500 text-white text-[10px] font-bold text-center py-0.5">KAPAK</div>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-40 aspect-square border-2 border-dashed border-neutral-200 rounded-xl bg-neutral-50 cursor-pointer hover:border-primary-300 hover:bg-primary-50 transition-colors">
+                <Upload className="w-6 h-6 text-neutral-300 mb-1" />
+                <span className="text-xs text-neutral-400">800 × 800</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleCoverImageAdd} />
+              </label>
+            )}
           </div>
-          
-          {images.length === 0 ? (
-            <div className="border-2 border-dashed border-neutral-200 rounded-xl p-8 text-center bg-neutral-50/50">
-              <Upload className="w-8 h-8 text-neutral-300 mx-auto mb-2" />
-              <p className="text-sm text-neutral-500 font-medium">Görsel seçmek için tıklayın veya sürükleyin</p>
-              <p className="text-xs text-neutral-400 mt-1">PNG, JPG, WEBP (Otomatik optimize edilir)</p>
+
+          <div className="border-t border-neutral-100" />
+
+          {/* Detay Görselleri */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-neutral-800">Detay Görselleri</p>
+                <p className="text-xs text-neutral-400">1200 × 900 px · 4:3 oran · Birden fazla eklenebilir</p>
+              </div>
+              <label className="btn btn-sm btn-outline cursor-pointer">
+                <Upload className="w-4 h-4" /> Görsel Ekle
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleDetailImagesAdd} />
+              </label>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {images.map((img, idx) => (
-                <div key={idx} className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all ${img.is_cover ? 'border-primary-500 shadow-md' : 'border-neutral-200'}`}>
-                  <img src={img.preview} alt="" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                    {!img.is_cover && (
-                      <button type="button" onClick={() => setCoverImage(idx)} className="btn btn-sm bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm text-xs">Kapak Yap</button>
-                    )}
-                    <button type="button" onClick={() => setImages(images.filter((_, i) => i !== idx))} className="btn btn-sm bg-red-500/80 hover:bg-red-500 text-white border-0 backdrop-blur-sm text-xs">Sil</button>
+            {detailImages.length === 0 ? (
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-neutral-200 rounded-xl bg-neutral-50 cursor-pointer hover:border-neutral-300 hover:bg-neutral-100 transition-colors">
+                <Upload className="w-5 h-5 text-neutral-300 mb-1" />
+                <span className="text-xs text-neutral-400">1200 × 900 px · PNG, JPG, WEBP</span>
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleDetailImagesAdd} />
+              </label>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                {detailImages.map((img, idx) => (
+                  <div key={idx} className="relative aspect-[4/3] rounded-xl overflow-hidden border-2 border-neutral-200">
+                    <img src={img.preview} alt="" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => setDetailImages(detailImages.filter((_, i) => i !== idx))}
+                      className="absolute top-1.5 right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600">
+                      <X className="w-3 h-3" />
+                    </button>
                   </div>
-                  {img.is_cover && <div className="absolute top-2 left-2 bg-primary-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">KAPAK</div>}
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+                <label className="aspect-[4/3] flex flex-col items-center justify-center border-2 border-dashed border-neutral-200 rounded-xl cursor-pointer hover:border-neutral-300 hover:bg-neutral-50 transition-colors">
+                  <Plus className="w-5 h-5 text-neutral-300" />
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={handleDetailImagesAdd} />
+                </label>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Basic Info */}
@@ -251,7 +302,23 @@ export default function AddProductPage() {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-bold text-neutral-900">Fiyat & Stok Yönetimi</h2>
+            <div className="flex items-center gap-1 bg-neutral-100 rounded-lg p-1">
+              <button type="button" onClick={() => setPriceCurrency('TRY')}
+                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${priceCurrency === 'TRY' ? 'bg-white shadow text-neutral-900' : 'text-neutral-500 hover:text-neutral-700'}`}>
+                ₺ TL
+              </button>
+              <button type="button" onClick={() => setPriceCurrency('USD')}
+                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${priceCurrency === 'USD' ? 'bg-white shadow text-green-700' : 'text-neutral-500 hover:text-neutral-700'}`}>
+                $ USD
+              </button>
+            </div>
           </div>
+          {priceCurrency === 'USD' && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+              <span className="font-bold">Kur: $1 = ₺{usdRate.toFixed(2)}</span>
+              <span className="text-blue-500">— Fiyatlar dolar olarak girilir, sitede otomatik TL'ye çevrilir.</span>
+            </div>
+          )}
           
           <div className="grid sm:grid-cols-2 gap-5">
             {/* Maliyet */}
@@ -269,18 +336,18 @@ export default function AddProductPage() {
 
             {/* Satış Fiyatı */}
             <div className="space-y-2 p-4 bg-white rounded-xl border border-neutral-200 shadow-sm">
-              <label className="text-sm font-bold text-primary-700">Satış Fiyatı (₺) *</label>
+              <label className="text-sm font-bold text-primary-700">Satış Fiyatı ({priceCurrency === 'USD' ? '$' : '₺'}) *{priceCurrency === 'USD' && form.price ? <span className="ml-2 text-xs font-normal text-neutral-400">≈ ₺{(parseFloat(form.price) * usdRate).toFixed(2)}</span> : null}</label>
               <div className="flex gap-2">
-                <div className="relative w-1/3">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs font-bold">+%</span>
-                  <input type="number" className="input pl-8" placeholder="Kâr" 
+                <div className="flex rounded-lg border border-neutral-200 overflow-hidden w-1/3">
+                  <span className="px-2 flex items-center bg-neutral-100 text-neutral-500 text-xs font-bold border-r border-neutral-200 whitespace-nowrap">+%</span>
+                  <input type="number" className="flex-1 px-2 py-2 text-sm outline-none min-w-0 appearance-none" placeholder="Kâr"
                         onChange={(e) => {
                           const cost = parseFloat(form.cost_price) || 0;
                           const margin = parseFloat(e.target.value);
                           if (!isNaN(margin) && cost > 0) {
                             setForm(p => ({ ...p, price: (cost + (cost * margin / 100)).toFixed(2) }))
                           }
-                        }} 
+                        }}
                   />
                 </div>
                 <input type="number" name="price" value={form.price} onChange={handleChange} required className="input flex-1 border-primary-300 focus:border-primary-500" placeholder="0.00" min="0" step="0.01" />
@@ -289,18 +356,18 @@ export default function AddProductPage() {
 
             {/* Bayi Fiyatı */}
             <div className="space-y-2 p-4 bg-white rounded-xl border border-neutral-200 shadow-sm">
-              <label className="text-sm font-bold text-blue-700">Bayi Fiyatı (₺)</label>
+              <label className="text-sm font-bold text-blue-700">Bayi Fiyatı ({priceCurrency === 'USD' ? '$' : '₺'}){priceCurrency === 'USD' && form.dealer_price ? <span className="ml-2 text-xs font-normal text-neutral-400">≈ ₺{(parseFloat(form.dealer_price) * usdRate).toFixed(2)}</span> : null}</label>
               <div className="flex gap-2">
-                <div className="relative w-1/3">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs font-bold">+%</span>
-                  <input type="number" className="input pl-8" placeholder="Kâr" 
+                <div className="flex rounded-lg border border-neutral-200 overflow-hidden w-1/3">
+                  <span className="px-2 flex items-center bg-neutral-100 text-neutral-500 text-xs font-bold border-r border-neutral-200 whitespace-nowrap">+%</span>
+                  <input type="number" className="flex-1 px-2 py-2 text-sm outline-none min-w-0 appearance-none" placeholder="Kâr"
                         onChange={(e) => {
                           const cost = parseFloat(form.cost_price) || 0;
                           const margin = parseFloat(e.target.value);
                           if (!isNaN(margin) && cost > 0) {
                             setForm(p => ({ ...p, dealer_price: (cost + (cost * margin / 100)).toFixed(2) }))
                           }
-                        }} 
+                        }}
                   />
                 </div>
                 <input type="number" name="dealer_price" value={form.dealer_price} onChange={handleChange} className="input flex-1 border-blue-200 focus:border-blue-500" placeholder="Opsiyonel" min="0" step="0.01" />
@@ -311,20 +378,20 @@ export default function AddProductPage() {
             <div className="space-y-2 p-4 bg-red-50 rounded-xl border border-red-100 sm:col-span-2">
               <label className="text-sm font-bold text-red-700">Müşteriye Gösterilecek İndirimli Fiyat (₺)</label>
               <div className="flex gap-2">
-                <div className="relative w-1/4">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500 text-xs font-bold">-%</span>
-                  <input type="number" className="input pl-8 bg-white border-red-200 focus:border-red-500" placeholder="İndirim" 
+                <div className="flex rounded-lg border border-red-200 overflow-hidden w-1/4">
+                  <span className="px-2 flex items-center bg-red-100 text-red-500 text-xs font-bold border-r border-red-200 whitespace-nowrap">-%</span>
+                  <input type="number" className="flex-1 px-2 py-2 text-sm outline-none min-w-0 appearance-none bg-white" placeholder="İndirim"
                         onChange={(e) => {
                           const price = parseFloat(form.price) || 0;
                           const discount = parseFloat(e.target.value);
                           if (!isNaN(discount) && price > 0) {
-                            setForm(p => ({ 
-                              ...p, 
+                            setForm(p => ({
+                              ...p,
                               sale_price: (price - (price * discount / 100)).toFixed(2),
                               discount_percent: discount.toString()
                             }))
                           }
-                        }} 
+                        }}
                   />
                 </div>
                 <input type="number" name="sale_price" value={form.sale_price} onChange={(e) => {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Save, X, ImageIcon, Eye, EyeOff } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabaseBrowser as supabase } from '@/lib/supabase-browser'
 import { convertToWebP } from '@/lib/imageUtils'
 
 export default function AdminSlider() {

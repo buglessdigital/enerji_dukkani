@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabaseBrowser as supabase } from '@/lib/supabase-browser'
+import { supabaseBrowser } from '@/lib/supabase-browser'
+import NotificationBell from '@/components/admin/NotificationBell'
 import {
   LayoutDashboard,
   Package,
@@ -21,18 +23,21 @@ import {
   Menu,
   X,
   LogOut,
-  Bell,
+  ClipboardList,
+  MessageSquare,
 } from 'lucide-react'
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/urunler', label: 'Ürünler', icon: Package },
   { href: '/admin/siparisler', label: 'Siparişler', icon: ShoppingCart },
+  { href: '/admin/teklif', label: 'Teklifler', icon: ClipboardList },
   { href: '/admin/kategoriler', label: 'Kategoriler', icon: FolderTree },
   { href: '/admin/bayiler', label: 'Bayiler', icon: Users },
   { href: '/admin/slider', label: 'Hero Slider', icon: ImageIcon },
   { href: '/admin/koleksiyonlar', label: 'Koleksiyonlar', icon: Grid3X3 },
   { href: '/admin/yorumlar', label: 'Yorumlar', icon: Star },
+  { href: '/admin/mesajlar', label: 'Mesajlar', icon: MessageSquare },
   { href: '/admin/sayfalar', label: 'Sayfalar', icon: FileText },
   { href: '/admin/ayarlar', label: 'Ayarlar', icon: Settings },
 ]
@@ -46,18 +51,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   
   useEffect(() => {
     async function checkAdmin() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        window.location.href = '/hesabim'
-        return
-      }
+      // Session check is already handled server-side by proxy.ts.
+      // Here we only verify the admin role via a DB query.
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
+      if (!session) return // proxy should have redirected, fallback guard
 
       const { data } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', session.user.id)
         .single()
-      
+
       if (data?.role !== 'admin') {
         window.location.href = '/'
         return
@@ -165,10 +169,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            <button className="relative p-2 text-neutral-500 hover:text-primary-600 rounded-lg hover:bg-neutral-100 transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
+            <NotificationBell />
             <Link
               href="/"
               className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-600 hover:text-primary-600 rounded-lg hover:bg-neutral-100 transition-colors"
