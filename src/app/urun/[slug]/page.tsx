@@ -10,7 +10,7 @@ import WhatsAppButton from '@/components/common/WhatsAppButton'
 import { Heart, ShoppingCart, Star, Check, AlertCircle, Shield, Truck, RefreshCw, ChevronRight, ImageIcon, SearchX, Zap } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { supabaseBrowser } from '@/lib/supabase-browser'
-import type { Product } from '@/lib/types'
+import type { Product, SiteSettings } from '@/lib/types'
 import { useCart } from '@/context/CartContext'
 import type { VariantSelection } from '@/context/CartContext'
 
@@ -37,7 +37,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const [isFavorite, setIsFavorite] = useState(false)
   const [rating, setRating] = useState({ average: 0, count: 0 })
   const [reviews, setReviews] = useState<any[]>([])
-  const [siteSettings, setSiteSettings] = useState<{ whatsapp: string; phone: string } | null>(null)
+  const [siteSettings, setSiteSettings] = useState<Partial<SiteSettings> | null>(null)
   const [authUser, setAuthUser] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
   const [reviewRating, setReviewRating] = useState(0)
@@ -110,10 +110,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
       
       const { data: set } = await supabase.from('site_settings').select('whatsapp_number, phone, feature_shipping_title, feature_shipping_desc, feature_guarantee_title, feature_guarantee_desc, feature_return_title, feature_return_desc, delivery_shipping_text, delivery_return_text').single()
       if (set) {
-        setSiteSettings({
-          whatsapp: set.whatsapp_number,
-          phone: set.phone
-        })
+        setSiteSettings(set)
       }
 
       setLoading(false)
@@ -516,7 +513,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                       <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
                     </button>
                     <a
-                      href={`https://wa.me/${(siteSettings?.whatsapp || '').replace(/\s/g, '').replace(/^\+/, '').replace(/^0/, '90')}?text=${encodeURIComponent(`Merhaba, aşağıdaki ürün hakkında bilgi almak istiyorum:\n\n*${product.name}*\n${typeof window !== 'undefined' ? window.location.href : ''}`)}`}
+                      href={`https://wa.me/${(siteSettings?.whatsapp_number || '').replace(/\s/g, '').replace(/^\+/, '').replace(/^0/, '90')}?text=${encodeURIComponent(`Merhaba, aşağıdaki ürün hakkında bilgi almak istiyorum:\n\n*${product.name}*\n${typeof window !== 'undefined' ? window.location.href : ''}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex flex-1 items-center justify-center gap-2 h-12 rounded-xl font-semibold text-sm text-white"
@@ -531,7 +528,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
                   {/* Desktop: WhatsApp ile Sipariş Ver */}
                   <a
-                    href={`https://wa.me/${(siteSettings?.whatsapp || '').replace(/\s/g, '').replace(/^\+/, '').replace(/^0/, '90')}?text=${encodeURIComponent(
+                    href={`https://wa.me/${(siteSettings?.whatsapp_number || '').replace(/\s/g, '').replace(/^\+/, '').replace(/^0/, '90')}?text=${encodeURIComponent(
                       `Merhaba, aşağıdaki ürün hakkında bilgi almak istiyorum:\n\n*${product.name}*\n${typeof window !== 'undefined' ? window.location.href : ''}`
                     )}`}
                     target="_blank"
