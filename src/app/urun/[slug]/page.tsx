@@ -108,7 +108,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
         }
       }
       
-      const { data: set } = await supabase.from('site_settings').select('whatsapp_number, phone').single()
+      const { data: set } = await supabase.from('site_settings').select('whatsapp_number, phone, feature_shipping_title, feature_shipping_desc, feature_guarantee_title, feature_guarantee_desc, feature_return_title, feature_return_desc, delivery_shipping_text, delivery_return_text').single()
       if (set) {
         setSiteSettings({
           whatsapp: set.whatsapp_number,
