@@ -19,6 +19,7 @@ function SearchResults() {
   const { addToCart } = useCart()
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
   const [sortOption, setSortOption] = useState<'newest'|'price_asc'|'price_desc'>('newest')
   const [currentPage, setCurrentPage] = useState(1)
   const PRODUCTS_PER_PAGE = 18
@@ -37,10 +38,9 @@ function SearchResults() {
       }
 
       setLoading(true)
-      
-      // Supabase or-logic for searching in multiple columns:
-      // ilike is case-insensitive pattern matching
-      const { data } = await supabase
+      setFetchError('')
+
+      const { data, error } = await supabase
         .from('products')
         .select(`
           *,
@@ -48,9 +48,11 @@ function SearchResults() {
         `)
         .eq('is_active', true)
         .or(`name.ilike.%${query}%,brand.ilike.%${query}%,description.ilike.%${query}%`)
-        
-      if (data) {
-        setProducts(data)
+
+      if (error) {
+        setFetchError('Arama sırasında bir hata oluştu. Lütfen tekrar deneyin.')
+      } else {
+        setProducts(data || [])
       }
       setLoading(false)
     }
@@ -115,6 +117,12 @@ function SearchResults() {
                     ]}
                   />
                </div>
+            </div>
+          )}
+
+          {fetchError && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center text-red-600 font-medium mb-6">
+              {fetchError}
             </div>
           )}
 

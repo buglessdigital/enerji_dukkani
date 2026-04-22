@@ -354,7 +354,13 @@ export default function AddProductPage() {
                         }}
                   />
                 </div>
-                <input type="number" name="price" value={form.price} onChange={handleChange} required className="input flex-1 border-primary-300 focus:border-primary-500" placeholder="0.00" min="0" step="0.01" />
+                <input type="number" name="price" value={form.price} onChange={(e) => {
+                  handleChange(e)
+                  const cost = parseFloat(form.cost_price) || 0
+                  const price = parseFloat(e.target.value)
+                  if (!isNaN(price) && cost > 0) setPriceMargin(((price - cost) / cost * 100).toFixed(2))
+                  else setPriceMargin('')
+                }} required className="input flex-1 border-primary-300 focus:border-primary-500" placeholder="0.00" min="0" step="0.01" />
               </div>
             </div>
 
@@ -376,7 +382,13 @@ export default function AddProductPage() {
                         }}
                   />
                 </div>
-                <input type="number" name="dealer_price" value={form.dealer_price} onChange={handleChange} className="input flex-1 border-blue-200 focus:border-blue-500" placeholder="Opsiyonel" min="0" step="0.01" />
+                <input type="number" name="dealer_price" value={form.dealer_price} onChange={(e) => {
+                  handleChange(e)
+                  const cost = parseFloat(form.cost_price) || 0
+                  const price = parseFloat(e.target.value)
+                  if (!isNaN(price) && cost > 0) setDealerMargin(((price - cost) / cost * 100).toFixed(2))
+                  else setDealerMargin('')
+                }} className="input flex-1 border-blue-200 focus:border-blue-500" placeholder="Opsiyonel" min="0" step="0.01" />
               </div>
             </div>
 
@@ -387,13 +399,16 @@ export default function AddProductPage() {
                 <div className="flex rounded-lg border border-red-200 overflow-hidden w-1/4">
                   <span className="px-2 flex items-center bg-red-100 text-red-500 text-xs font-bold border-r border-red-200 whitespace-nowrap">-%</span>
                   <input type="number" className="flex-1 px-2 py-2 text-sm outline-none min-w-0 appearance-none bg-white" placeholder="İndirim"
+                        value={form.discount_percent}
                         onChange={(e) => {
-                          const price = parseFloat(form.price) || 0;
+                          const basePriceTL = priceCurrency === 'USD'
+                            ? (parseFloat(form.price) || 0) * usdRate
+                            : (parseFloat(form.price) || 0);
                           const discount = parseFloat(e.target.value);
-                          if (!isNaN(discount) && price > 0) {
+                          if (!isNaN(discount) && basePriceTL > 0) {
                             setForm(p => ({
                               ...p,
-                              sale_price: (price - (price * discount / 100)).toFixed(2),
+                              sale_price: (basePriceTL - (basePriceTL * discount / 100)).toFixed(2),
                               discount_percent: discount.toString()
                             }))
                           }
@@ -402,11 +417,12 @@ export default function AddProductPage() {
                 </div>
                 <input type="number" name="sale_price" value={form.sale_price} onChange={(e) => {
                   handleChange(e);
-                  // Update discount percent automatically if manual price is entered
-                  const price = parseFloat(form.price) || 0;
+                  const basePriceTL = priceCurrency === 'USD'
+                    ? (parseFloat(form.price) || 0) * usdRate
+                    : (parseFloat(form.price) || 0);
                   const sale = parseFloat(e.target.value);
-                  if (!isNaN(sale) && price > 0) {
-                     setForm(p => ({ ...p, discount_percent: Math.round(((price - sale) / price) * 100).toString() }))
+                  if (!isNaN(sale) && basePriceTL > 0) {
+                    setForm(p => ({ ...p, discount_percent: Math.max(0, Math.round(((basePriceTL - sale) / basePriceTL) * 100)).toString() }))
                   }
                 }} className="input bg-white flex-1 border-red-200 focus:border-red-500" placeholder="Tüketiciye yansıyan kampanyalı fiyat (Opsiyonel)" min="0" step="0.01" />
               </div>

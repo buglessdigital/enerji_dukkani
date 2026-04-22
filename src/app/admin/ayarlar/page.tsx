@@ -10,7 +10,8 @@ export default function SettingsPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [uploadingField, setUploadingField] = useState<string | null>(null)
-  
+  const [settingsId, setSettingsId] = useState<string | null>(null)
+
   const [form, setForm] = useState({
     site_name: '', company_name: '', email: '', support_email: '',
     phone: '', phone_secondary: '', whatsapp_number: '', whatsapp_enabled: true,
@@ -37,6 +38,7 @@ export default function SettingsPage() {
     async function fetchSettings() {
       const { data, error } = await supabase.from('site_settings').select('*').limit(1).single()
       if (data) {
+        setSettingsId(data.id)
         const sanitizedData = Object.fromEntries(
           Object.entries(data).map(([key, val]) => [key, val === null ? '' : val])
         )
@@ -100,7 +102,8 @@ export default function SettingsPage() {
       usd_exchange_rate: parseFloat(form.usd_exchange_rate) || 35.0,
     }
 
-    const { error: updateError } = await supabase.from('site_settings').update(updates).eq('id', (form as any).id)
+    if (!settingsId) { setError('Ayar kaydı bulunamadı.'); setSaving(false); return }
+    const { error: updateError } = await supabase.from('site_settings').update(updates).eq('id', settingsId)
     
     if (updateError) {
       setError(updateError.message)

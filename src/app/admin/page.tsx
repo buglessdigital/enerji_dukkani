@@ -112,12 +112,12 @@ export default function AdminDashboard() {
 
         setStats({
           totalRevenue: revenue,
-          pendingOrders: pendingOrdersRes.count || 0,
-          totalCustomers: customersRes.count || 0,
-          lowStockCount: lowStockRes.count || 0,
-          totalProducts: productsRes.count || 0,
-          pendingReviews: reviewsRes.count || 0,
-          pendingDealerApps: dealerAppsRes.count || 0,
+          pendingOrders: pendingOrdersRes.count ?? 0,
+          totalCustomers: customersRes.count ?? 0,
+          lowStockCount: lowStockRes.count ?? 0,
+          totalProducts: productsRes.count ?? 0,
+          pendingReviews: reviewsRes.count ?? 0,
+          pendingDealerApps: dealerAppsRes.count ?? 0,
         })
 
         setRecentOrders((ordersRes.data as any) || [])
