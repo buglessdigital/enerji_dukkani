@@ -13,6 +13,7 @@ import { supabaseBrowser } from '@/lib/supabase-browser'
 import type { Product, SiteSettings } from '@/lib/types'
 import { useCart } from '@/context/CartContext'
 import type { VariantSelection } from '@/context/CartContext'
+import { useDealer } from '@/context/DealerContext'
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat('tr-TR', {
@@ -40,12 +41,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const [siteSettings, setSiteSettings] = useState<Partial<SiteSettings> | null>(null)
   const [authUser, setAuthUser] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
+  const { getDealerPrice, isDealer, dealerDiscount } = useDealer()
   const [reviewRating, setReviewRating] = useState(0)
   const [reviewHover, setReviewHover] = useState(0)
   const [reviewComment, setReviewComment] = useState('')
   const [reviewSubmitting, setReviewSubmitting] = useState(false)
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
   const [reviewError, setReviewError] = useState('')
+  const [similarProducts, setSimilarProducts] = useState<any[]>([])
 
   useEffect(() => {
     async function fetchProduct() {
@@ -113,17 +116,29 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
         setSiteSettings(set)
       }
 
+      // Benzer ürünler
+      if (data?.category_id) {
+        const { data: similar } = await supabase
+          .from('products')
+          .select('id, name, slug, price, sale_price, images:product_images(url, is_cover)')
+          .eq('category_id', data.category_id)
+          .eq('is_active', true)
+          .neq('id', data.id)
+          .limit(4)
+        if (similar) setSimilarProducts(similar)
+      }
+
       setLoading(false)
     }
     fetchProduct()
   }, [slug])
 
   useEffect(() => {
-    supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
+    supabaseBrowser.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         setAuthUser(session.user)
-        supabaseBrowser.from('profiles').select('full_name').eq('id', session.user.id).single()
-          .then(({ data }) => { if (data) setUserProfile(data) })
+        const { data: profile } = await supabaseBrowser.from('profiles').select('full_name, role').eq('id', session.user.id).single()
+        if (profile) setUserProfile(profile)
       }
     })
   }, [])
@@ -243,6 +258,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
       ? Math.round(((effectivePrice - effectiveSalePrice) / effectivePrice) * 100)
       : null)
 
+  const dealerEffectivePrice = getDealerPrice(displayPrice, product.dealer_price != null ? product.dealer_price + totalModifier : null)
+
+  const dealerDiscountPercent = dealerEffectivePrice != null && displayPrice > 0
+    ? Math.round(((displayPrice - dealerEffectivePrice) / displayPrice) * 100)
+    : null
+
   return (
     <>
       <Navbar />
@@ -349,23 +370,32 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                   {product.name}
                 </h1>
                 
-                <div className="flex items-center gap-4 mb-6">
-                  {/* Price */}
-                  <div className="flex items-baseline gap-2.5">
-                    <span className="text-3xl font-heading font-extrabold text-primary-700">
-                      {formatPrice(displayPrice)}
-                    </span>
-                    {effectiveSalePrice != null && (
-                      <span className="text-lg text-neutral-400 font-medium line-through">
-                        {formatPrice(effectivePrice)}
+                <div className="flex flex-col gap-2 mb-6">
+                  <div className="flex items-center gap-4">
+                    {/* Price */}
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-3xl font-heading font-extrabold text-primary-700">
+                        {formatPrice(dealerEffectivePrice ?? displayPrice)}
                       </span>
-                    )}
-                  </div>
-                  {/* Discount Badge */}
-                  {discountPercent && discountPercent > 0 && (
-                    <div className="bg-accent-100 text-accent-700 font-bold text-xs px-3 py-1.5 rounded-lg border border-accent-200">
-                      %{discountPercent} İndirim
+                      {(effectiveSalePrice != null || dealerEffectivePrice != null) && (
+                        <span className="text-lg text-neutral-400 font-medium line-through">
+                          {formatPrice(dealerEffectivePrice != null ? displayPrice : effectivePrice)}
+                        </span>
+                      )}
                     </div>
+                    {/* Discount Badge */}
+                    {dealerDiscountPercent && dealerDiscountPercent > 0 ? (
+                      <div className="bg-blue-100 text-blue-700 font-bold text-xs px-3 py-1.5 rounded-lg border border-blue-200">
+                        Bayi İndirimi %{dealerDiscountPercent}
+                      </div>
+                    ) : discountPercent && discountPercent > 0 ? (
+                      <div className="bg-accent-100 text-accent-700 font-bold text-xs px-3 py-1.5 rounded-lg border border-accent-200">
+                        %{discountPercent} İndirim
+                      </div>
+                    ) : null}
+                  </div>
+                  {dealerEffectivePrice != null && (
+                    <p className="text-xs text-blue-600 font-medium">Bayi özel fiyatı uygulandı</p>
                   )}
                 </div>
 
@@ -824,15 +854,53 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           </div>
         </div>
 
+        {/* Benzer Ürünler */}
+        {similarProducts.length > 0 && (
+          <section className="container-custom py-10">
+            <h2 className="text-xl font-bold text-neutral-900 font-heading mb-6">Benzer Ürünler</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {similarProducts.map((p) => {
+                const coverImg = p.images?.find((i: any) => i.is_cover) || p.images?.[0]
+                const hasDiscount = p.sale_price && p.sale_price < p.price
+                return (
+                  <Link key={p.id} href={`/urun/${p.slug}`} className="group bg-white rounded-2xl border border-neutral-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                    <div className="aspect-square bg-neutral-50 overflow-hidden">
+                      {coverImg ? (
+                        <img src={coverImg.url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-neutral-200">
+                          <ImageIcon className="w-10 h-10" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm font-semibold text-neutral-800 line-clamp-2 leading-snug mb-2">{p.name}</p>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-base font-bold text-primary-700">{formatPrice(hasDiscount ? p.sale_price : p.price)}</span>
+                        {hasDiscount && <span className="text-xs text-neutral-400 line-through">{formatPrice(p.price)}</span>}
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
       </main>
 
       {/* Mobile Sticky Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-100 px-4 py-3 flex items-center gap-3 z-50 sm:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col shrink-0">
-          <span className="text-[11px] text-neutral-400 font-medium">Fiyat</span>
-          <span className="text-base font-extrabold text-primary-700 font-heading leading-tight">
-            {formatPrice(product.sale_price || product.price)}
+          <span className="text-[11px] text-neutral-400 font-medium">
+            {dealerEffectivePrice != null ? 'Bayi Fiyatı' : 'Fiyat'}
           </span>
+          <span className="text-base font-extrabold text-primary-700 font-heading leading-tight">
+            {formatPrice(dealerEffectivePrice ?? displayPrice)}
+          </span>
+          {dealerEffectivePrice != null && (
+            <span className="text-[10px] text-blue-600 font-semibold">%{dealerDiscountPercent} indirim</span>
+          )}
         </div>
         <button
           onClick={() => { addToCart(product, quantity); alert('Ürün sepete eklendi!') }}

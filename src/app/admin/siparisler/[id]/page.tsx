@@ -94,8 +94,24 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       .eq('id', id)
 
     if (!error) {
+      // Sipariş iptal ediliyorsa ve daha önce iptal değilse stokları geri ver
+      if (form.status === 'cancelled' && order.status !== 'cancelled') {
+        for (const item of order.items) {
+          const { data: pData } = await supabase
+            .from('products')
+            .select('stock_quantity')
+            .eq('id', item.product_id)
+            .single()
+          if (pData) {
+            await supabase
+              .from('products')
+              .update({ stock_quantity: pData.stock_quantity + item.quantity })
+              .eq('id', item.product_id)
+          }
+        }
+      }
+
       setSuccess('Sipariş başarıyla güncellendi.')
-      // Update local state
       setOrder((prev: any) => ({ ...prev, ...form }))
     }
     setSaving(false)

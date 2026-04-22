@@ -83,7 +83,7 @@ export default function CheckoutPage() {
 
     try {
       // 1. Yeni Adres Kaydı (Eğer var olanı seçme ekranı yapsaydık bu adımı atlardık)
-      const { data: addressData, error: addressError } = await supabase
+      const { data: addressData, error: addressError } = await supabaseBrowser
         .from('addresses')
         .insert([{
           user_id: user?.id || null,
@@ -105,7 +105,7 @@ export default function CheckoutPage() {
       // 2. Sipariş (Order) Oluşturma
       const orderNumber = 'ENR-' + Date.now().toString().slice(-6)
 
-      const { data: orderData, error: orderError } = await supabase
+      const { data: orderData, error: orderError } = await supabaseBrowser
         .from('orders')
         .insert([{
           order_number: orderNumber,
@@ -136,16 +136,16 @@ export default function CheckoutPage() {
         total_price: (item.sale_price || item.price) * item.quantity
       }))
 
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItemsToInsert)
+      const { error: itemsError } = await supabaseBrowser.from('order_items').insert(orderItemsToInsert)
       if (itemsError) throw new Error('Siparişteki ürünler işlenirken hata oluştu.')
 
       // 3.5 Stokları Düşür
       for (const item of cart) {
         // Mevcut stoğu öğren (eşzamanlı satın alımlarda eksiye düşmeyi önlemek için veritabanından çekmek daha güvenli)
-        const { data: pData } = await supabase.from('products').select('stock_quantity').eq('id', item.id).single()
+        const { data: pData } = await supabaseBrowser.from('products').select('stock_quantity').eq('id', item.id).single()
         if (pData && pData.stock_quantity !== undefined) {
           const newStock = Math.max(0, pData.stock_quantity - item.quantity)
-          await supabase.from('products').update({ stock_quantity: newStock }).eq('id', item.id)
+          await supabaseBrowser.from('products').update({ stock_quantity: newStock }).eq('id', item.id)
         }
       }
 
@@ -249,17 +249,7 @@ export default function CheckoutPage() {
                   </div>
                   <h2 className="text-xl font-bold font-heading">Ödeme Bilgileri</h2>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-8 bg-neutral-50 rounded px-2 py-1 border border-neutral-200 flex items-center justify-center">
-                    <img src="/visa.png" alt="Visa" className="h-full w-auto object-contain" />
-                  </div>
-                  <div className="h-8 bg-neutral-50 rounded px-2 py-1 border border-neutral-200 flex items-center justify-center">
-                    <img src="/paytr.png" alt="PayTR" className="h-full w-auto object-contain" />
-                  </div>
-                  <div className="h-8 bg-neutral-50 rounded px-2 py-1 border border-neutral-200 flex items-center justify-center">
-                    <img src="/mastercard.png" alt="Mastercard" className="h-full w-auto object-contain" />
-                  </div>
-                </div>
+                <img src="/paytr.png" alt="PayTR" className="h-7 w-auto object-contain" />
               </div>
               
               <div className="space-y-4">

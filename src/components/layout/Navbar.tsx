@@ -172,20 +172,9 @@ export default function Navbar() {
           </button>
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0" id="nav-logo">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white">
-                  <path d="M13 2L4 14h7l-2 8 9-12h-7l2-8z" fill="currentColor" />
-                </svg>
-              </div>
-            <div className="hidden sm:block">
-              <span className="block font-heading text-lg font-bold text-neutral-900 leading-tight">
-                {settings?.site_name || 'Enerji Dükkanı'}
-              </span>
-              <span className="block text-[10px] text-neutral-400 font-medium tracking-wider uppercase">
-                Güneş Enerjisi Sistemleri
-              </span>
-            </div>
+          <Link href="/" className="flex items-center shrink-0" id="nav-logo">
+            <img src="/logo3.png" alt={settings?.site_name || 'Enerji Dükkanı'} className="block sm:hidden h-20 w-auto" />
+            <img src="/logo2.png" alt={settings?.site_name || 'Enerji Dükkanı'} className="hidden sm:block h-72 w-auto mix-blend-multiply" />
           </Link>
 
           {/* Search Bar - Desktop */}

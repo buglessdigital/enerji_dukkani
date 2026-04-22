@@ -180,56 +180,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Branding */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">
-          <h2 className="text-lg font-bold text-neutral-900">Logo & Marka (URL veya Dosya Seçin)</h2>
-          <div className="grid sm:grid-cols-2 gap-5">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-neutral-700">Site Logosu (Header)</label>
-              <div className="flex gap-2">
-                <input type="url" name="logo_url" value={form.logo_url} onChange={handleChange} className="input flex-1" />
-                <label className="btn btn-outline border-neutral-200 bg-white shrink-0 cursor-pointer">
-                  {uploadingField === 'logo_url' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Dosya Seç'}
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'logo_url')} />
-                </label>
-              </div>
-              {form.logo_url && <img src={form.logo_url} alt="Logo" className="h-10 object-contain p-2 border border-neutral-100 rounded bg-neutral-50" />}
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-neutral-700">Dark Logo</label>
-              <div className="flex gap-2">
-                <input type="url" name="dark_logo_url" value={form.dark_logo_url} onChange={handleChange} className="input flex-1" />
-                <label className="btn btn-outline border-neutral-200 bg-white shrink-0 cursor-pointer">
-                  {uploadingField === 'dark_logo_url' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Dosya Seç'}
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'dark_logo_url')} />
-                </label>
-              </div>
-              {form.dark_logo_url && <img src={form.dark_logo_url} alt="Dark Logo" className="h-10 object-contain p-2 border border-neutral-100 rounded bg-neutral-900" />}
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-neutral-700">Footer Logosu</label>
-              <div className="flex gap-2">
-                <input type="url" name="footer_logo_url" value={form.footer_logo_url} onChange={handleChange} className="input flex-1" />
-                <label className="btn btn-outline border-neutral-200 bg-white shrink-0 cursor-pointer">
-                  {uploadingField === 'footer_logo_url' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Dosya Seç'}
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'footer_logo_url')} />
-                </label>
-              </div>
-              {form.footer_logo_url && <img src={form.footer_logo_url} alt="Footer Logo" className="h-10 object-contain p-2 border border-neutral-100 rounded bg-neutral-900" />}
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-neutral-700">Favicon</label>
-              <div className="flex gap-2">
-                <input type="url" name="favicon_url" value={form.favicon_url} onChange={handleChange} className="input flex-1" />
-                <label className="btn btn-outline border-neutral-200 bg-white shrink-0 cursor-pointer">
-                  {uploadingField === 'favicon_url' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Dosya Seç'}
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'favicon_url')} />
-                </label>
-              </div>
-              {form.favicon_url && <img src={form.favicon_url} alt="Favicon" className="h-10 object-contain p-2 border border-neutral-100 rounded bg-neutral-50" />}
-            </div>
-          </div>
-        </div>
 
         {/* Currency Settings */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 space-y-5">

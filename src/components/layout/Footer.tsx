@@ -39,18 +39,9 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12">
           {/* Column 1: Brand */}
           <div className="space-y-4">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-                <Zap className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <span className="block font-heading text-lg font-bold text-white leading-tight">
-                  {siteName}
-                </span>
-                <span className="block text-[10px] text-neutral-500 font-medium tracking-wider uppercase">
-                  Güneş Enerjisi Sistemleri
-                </span>
-              </div>
+            <Link href="/" className="flex items-center sm:-mt-16 sm:-mb-16">
+              <img src="/logo3.png" alt={siteName} className="block sm:hidden h-20 w-auto" />
+              <img src="/logo.png" alt={siteName} className="hidden sm:block h-72 w-auto mix-blend-screen" />
             </Link>
             <p className="text-sm text-neutral-400 leading-relaxed">
               Güneş enerjisi sistemleri, inverterler, akü çözümleri ve enerji
@@ -240,17 +231,7 @@ export default function Footer() {
             {/* Payment Logos */}
             <div className="flex items-center gap-3">
               <span className="text-xs text-neutral-500 mr-2">Güvenli Ödeme:</span>
-              <div className="flex items-center gap-2">
-                <div className="h-8 bg-white/5 rounded px-2 py-1 border border-neutral-800 flex items-center justify-center">
-                  <img src="/visa.png" alt="Visa" className="h-full w-auto object-contain" />
-                </div>
-                <div className="h-8 bg-white/5 rounded px-2 py-1 border border-neutral-800 flex items-center justify-center">
-                  <img src="/paytr.png" alt="PayTR" className="h-full w-auto object-contain" />
-                </div>
-                <div className="h-8 bg-white/5 rounded px-2 py-1 border border-neutral-800 flex items-center justify-center">
-                  <img src="/mastercard.png" alt="Mastercard" className="h-full w-auto object-contain" />
-                </div>
-              </div>
+              <img src="/paytr.png" alt="PayTR" className="h-7 w-auto object-contain" />
             </div>
 
             {/* Copyright */}

@@ -7,6 +7,7 @@ import { Heart, ShoppingCart, Star, Eye, ImageIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/context/CartContext'
 import { useFavorites } from '@/context/FavoritesContext'
+import { useDealer } from '@/context/DealerContext'
 import type { Product } from '@/lib/types'
 
 function formatPrice(price: number) {
@@ -21,6 +22,7 @@ function formatPrice(price: number) {
 function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart()
   const { isFavorite, toggleFavorite } = useFavorites()
+  const { getDealerPrice } = useDealer()
   const [isHovered, setIsHovered] = useState(false)
   
   const isFav = isFavorite(product.id)
@@ -148,13 +150,26 @@ function ProductCard({ product }: { product: Product }) {
         )}
 
         {/* Price */}
-        <div className="flex items-end gap-2">
-          <span className="price-current">
-            {formatPrice(product.sale_price || product.price)}
-          </span>
-          {product.sale_price && (
-            <span className="price-old">{formatPrice(product.price)}</span>
-          )}
+        <div className="flex items-end gap-2 flex-wrap">
+          {(() => {
+            const basePrice = product.sale_price || product.price
+            const dealerPrice = getDealerPrice(basePrice, product.dealer_price ?? null)
+            if (dealerPrice != null) {
+              return (
+                <div className="flex flex-col">
+                  <span className="price-old">{formatPrice(basePrice)}</span>
+                  <span className="price-current text-blue-600">{formatPrice(dealerPrice)}</span>
+                  <span className="text-xs text-blue-500 font-medium">Bayi Fiyatı</span>
+                </div>
+              )
+            }
+            return (
+              <>
+                <span className="price-current">{formatPrice(product.sale_price || product.price)}</span>
+                {product.sale_price && <span className="price-old">{formatPrice(product.price)}</span>}
+              </>
+            )
+          })()}
         </div>
 
         {/* Stock status */}

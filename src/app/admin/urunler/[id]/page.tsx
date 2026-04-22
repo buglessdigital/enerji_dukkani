@@ -22,6 +22,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true)
   const [usdRate, setUsdRate] = useState<number>(35.0)
   const [priceCurrency, setPriceCurrency] = useState<'TRY' | 'USD'>('TRY')
+  const [priceMargin, setPriceMargin] = useState('')
+  const [dealerMargin, setDealerMargin] = useState('')
   const [form, setForm] = useState({
     name: '', slug: '', brand: '', category_id: '', sku: '',
     price: '', sale_price: '', cost_price: '', dealer_price: '',
@@ -49,6 +51,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       setCategories(cats || [])
       setExistingImages(imgs || [])
       if (product) {
+        const costPrice = product.cost_price ? parseFloat(product.cost_price) : 0
+        const salePrice = product.price ? parseFloat(product.price) : 0
+        const dealerPrice = product.dealer_price ? parseFloat(product.dealer_price) : 0
+        if (costPrice > 0 && salePrice > 0) setPriceMargin(((salePrice - costPrice) / costPrice * 100).toFixed(2))
+        if (costPrice > 0 && dealerPrice > 0) setDealerMargin(((dealerPrice - costPrice) / costPrice * 100).toFixed(2))
         setForm({
           name: product.name || '', slug: product.slug || '',
           brand: product.brand || '', category_id: product.category_id || '',
@@ -376,7 +383,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 <div className="flex rounded-lg border border-neutral-200 overflow-hidden w-1/3">
                   <span className="px-2 flex items-center bg-neutral-100 text-neutral-500 text-xs font-bold border-r border-neutral-200 whitespace-nowrap">+%</span>
                   <input type="number" className="flex-1 px-2 py-2 text-sm outline-none min-w-0 appearance-none" placeholder="Kâr"
+                        value={priceMargin}
                         onChange={(e) => {
+                          setPriceMargin(e.target.value)
                           const cost = parseFloat(form.cost_price) || 0;
                           const margin = parseFloat(e.target.value);
                           if (!isNaN(margin) && cost > 0) {
@@ -396,7 +405,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 <div className="flex rounded-lg border border-neutral-200 overflow-hidden w-1/3">
                   <span className="px-2 flex items-center bg-neutral-100 text-neutral-500 text-xs font-bold border-r border-neutral-200 whitespace-nowrap">+%</span>
                   <input type="number" className="flex-1 px-2 py-2 text-sm outline-none min-w-0 appearance-none" placeholder="Kâr"
+                        value={dealerMargin}
                         onChange={(e) => {
+                          setDealerMargin(e.target.value)
                           const cost = parseFloat(form.cost_price) || 0;
                           const margin = parseFloat(e.target.value);
                           if (!isNaN(margin) && cost > 0) {
@@ -416,6 +427,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 <div className="flex rounded-lg border border-red-200 overflow-hidden w-1/4">
                   <span className="px-2 flex items-center bg-red-100 text-red-500 text-xs font-bold border-r border-red-200 whitespace-nowrap">-%</span>
                   <input type="number" className="flex-1 px-2 py-2 text-sm outline-none min-w-0 appearance-none bg-white" placeholder="İndirim"
+                        value={form.discount_percent}
                         onChange={(e) => {
                           const price = parseFloat(form.price) || 0;
                           const discount = parseFloat(e.target.value);
@@ -423,10 +435,12 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                             setForm(p => ({
                               ...p,
                               sale_price: (price - (price * discount / 100)).toFixed(2),
-                              discount_percent: discount.toString()
+                              discount_percent: e.target.value
                             }))
+                          } else {
+                            setForm(p => ({ ...p, discount_percent: e.target.value }))
                           }
-                        }} 
+                        }}
                   />
                 </div>
                 <input type="number" name="sale_price" value={form.sale_price} onChange={(e) => {

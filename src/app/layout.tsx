@@ -31,6 +31,10 @@ export const metadata: Metadata = {
     'şarj kontrol',
   ],
   authors: [{ name: 'Enerji Dükkanı' }],
+  icons: {
+    icon: '/logo3.png',
+    apple: '/logo3.png',
+  },
   openGraph: {
     type: 'website',
     locale: 'tr_TR',
@@ -40,6 +44,7 @@ export const metadata: Metadata = {
 
 import { CartProvider } from '@/context/CartContext'
 import { FavoritesProvider } from '@/context/FavoritesContext'
+import { DealerProvider } from '@/context/DealerContext'
 
 export default function RootLayout({
   children,
@@ -49,11 +54,13 @@ export default function RootLayout({
   return (
     <html lang="tr" className={`${montserrat.variable} ${inter.variable}`}>
       <body className="min-h-screen bg-neutral-50 text-neutral-800 antialiased">
-        <FavoritesProvider>
-          <CartProvider>
-            {children}
-          </CartProvider>
-        </FavoritesProvider>
+        <DealerProvider>
+          <FavoritesProvider>
+            <CartProvider>
+              {children}
+            </CartProvider>
+          </FavoritesProvider>
+        </DealerProvider>
       </body>
     </html>
   )

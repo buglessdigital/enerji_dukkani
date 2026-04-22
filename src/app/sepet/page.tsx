@@ -177,9 +177,8 @@ export default function CartPage() {
                   </Link>
                   
                   <div className="mt-6 flex flex-wrap gap-2 justify-center items-center opacity-60">
-                    <span className="text-[10px] font-bold text-neutral-500 uppercase">Geçerli Kartlar:</span>
-                    <img src="https://static.ticimax.cloud/cdn-cgi/image/width=50/3382/customcss/images/visa.png" alt="Visa" className="h-4" />
-                    <img src="https://static.ticimax.cloud/cdn-cgi/image/width=50/3382/customcss/images/mastercard.png" alt="Mastercard" className="h-4" />
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase">Güvenli Ödeme:</span>
+                    <img src="/paytr.png" alt="PayTR" className="h-7 w-auto object-contain" />
                   </div>
                 </div>
               </div>

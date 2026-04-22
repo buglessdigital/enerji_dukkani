@@ -20,6 +20,8 @@ export default function AddProductPage() {
   const [saving, setSaving] = useState(false)
   const [usdRate, setUsdRate] = useState<number>(35.0)
   const [priceCurrency, setPriceCurrency] = useState<'TRY' | 'USD'>('TRY')
+  const [priceMargin, setPriceMargin] = useState('')
+  const [dealerMargin, setDealerMargin] = useState('')
   const [form, setForm] = useState({
     name: '', slug: '', brand: '', category_id: '', sku: '',
     price: '', sale_price: '', cost_price: '', dealer_price: '',
@@ -341,7 +343,9 @@ export default function AddProductPage() {
                 <div className="flex rounded-lg border border-neutral-200 overflow-hidden w-1/3">
                   <span className="px-2 flex items-center bg-neutral-100 text-neutral-500 text-xs font-bold border-r border-neutral-200 whitespace-nowrap">+%</span>
                   <input type="number" className="flex-1 px-2 py-2 text-sm outline-none min-w-0 appearance-none" placeholder="Kâr"
+                        value={priceMargin}
                         onChange={(e) => {
+                          setPriceMargin(e.target.value)
                           const cost = parseFloat(form.cost_price) || 0;
                           const margin = parseFloat(e.target.value);
                           if (!isNaN(margin) && cost > 0) {
@@ -361,7 +365,9 @@ export default function AddProductPage() {
                 <div className="flex rounded-lg border border-neutral-200 overflow-hidden w-1/3">
                   <span className="px-2 flex items-center bg-neutral-100 text-neutral-500 text-xs font-bold border-r border-neutral-200 whitespace-nowrap">+%</span>
                   <input type="number" className="flex-1 px-2 py-2 text-sm outline-none min-w-0 appearance-none" placeholder="Kâr"
+                        value={dealerMargin}
                         onChange={(e) => {
+                          setDealerMargin(e.target.value)
                           const cost = parseFloat(form.cost_price) || 0;
                           const margin = parseFloat(e.target.value);
                           if (!isNaN(margin) && cost > 0) {

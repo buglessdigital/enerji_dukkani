@@ -7,6 +7,7 @@ import { Filter, ChevronDown, Check, ShoppingCart, Heart, Eye, ArrowLeft, X, Ima
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/context/CartContext'
 import { useFavorites } from '@/context/FavoritesContext'
+import { useDealer } from '@/context/DealerContext'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import WhatsAppButton from '@/components/common/WhatsAppButton'
@@ -16,6 +17,7 @@ export default function CategoryDetailPage({ params }: { params: Promise<{ slug:
   const { slug } = use(params)
   const { addToCart } = useCart()
   const { isFavorite, toggleFavorite } = useFavorites()
+  const { getDealerPrice } = useDealer()
   const [category, setCategory] = useState<any>(null)
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -242,8 +244,25 @@ export default function CategoryDetailPage({ params }: { params: Promise<{ slug:
                       <div className="mt-auto pt-4 border-t border-neutral-100">
                         <div className="flex items-end justify-between gap-2">
                           <div className="flex flex-col">
-                            {product.sale_price && <span className="price-old">{formatPrice(product.price)}</span>}
-                            <span className="price-current leading-none">{formatPrice(product.sale_price || product.price)}</span>
+                            {(() => {
+                              const basePrice = product.sale_price || product.price
+                              const dealerPrice = getDealerPrice(basePrice, product.dealer_price ?? null)
+                              if (dealerPrice != null) {
+                                return (
+                                  <>
+                                    <span className="price-old">{formatPrice(basePrice)}</span>
+                                    <span className="price-current leading-none text-blue-600">{formatPrice(dealerPrice)}</span>
+                                    <span className="text-xs text-blue-500 font-medium">Bayi Fiyatı</span>
+                                  </>
+                                )
+                              }
+                              return (
+                                <>
+                                  {product.sale_price && <span className="price-old">{formatPrice(product.price)}</span>}
+                                  <span className="price-current leading-none">{formatPrice(product.sale_price || product.price)}</span>
+                                </>
+                              )
+                            })()}
                           </div>
                           <button 
                             onClick={(e) => {
