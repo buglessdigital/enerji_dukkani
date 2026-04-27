@@ -197,7 +197,7 @@ export default function AdminTeklifPage() {
 
     const quoteUrl = `${siteUrl}/teklif/${quoteId}`
     const text = encodeURIComponent(
-      `Sayın ${customerName},\n\nEnerji Dükkanı olarak tarafınıza özel hazırladığımız teklifi aşağıdaki linkten inceleyebilirsiniz:\n\n📄 ${quoteNumber}\n🔗 ${quoteUrl}\n\nHerhangi bir sorunuz olursa bize ulaşabilirsiniz. İyi günler dileriz.`
+      `Sayın ${customerName},\n\nEnerji Ambarı olarak tarafınıza özel hazırladığımız teklifi aşağıdaki linkten inceleyebilirsiniz:\n\n📄 ${quoteNumber}\n🔗 ${quoteUrl}\n\nHerhangi bir sorunuz olursa bize ulaşabilirsiniz. İyi günler dileriz.`
     )
     return `https://wa.me/${clean}?text=${text}`
   }

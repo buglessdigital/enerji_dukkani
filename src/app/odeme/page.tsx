@@ -132,8 +132,8 @@ export default function CheckoutPage() {
         product_name: item.name,
         product_image: item.image_url,
         quantity: item.quantity,
-        unit_price: item.sale_price || item.price,
-        total_price: (item.sale_price || item.price) * item.quantity
+        unit_price: item.dealer_price ?? item.sale_price ?? item.price,
+        total_price: (item.dealer_price ?? item.sale_price ?? item.price) * item.quantity
       }))
 
       const { error: itemsError } = await supabaseBrowser.from('order_items').insert(orderItemsToInsert)
@@ -249,7 +249,7 @@ export default function CheckoutPage() {
                   </div>
                   <h2 className="text-xl font-bold font-heading">Ödeme Bilgileri</h2>
                 </div>
-                <img src="/paytr.png" alt="PayTR" className="h-7 w-auto object-contain" />
+                <Image src="/paytr.png" alt="PayTR" width={80} height={28} className="h-7 w-auto object-contain" />
               </div>
               
               <div className="space-y-4">
@@ -302,7 +302,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm text-neutral-800 line-clamp-2">{item.name}</p>
-                      <p className="text-sm font-medium text-primary-600 mt-1">{formatPrice(item.sale_price || item.price)}</p>
+                      <p className="text-sm font-medium text-primary-600 mt-1">{formatPrice(item.dealer_price ?? item.sale_price ?? item.price)}</p>
                     </div>
                   </div>
                 ))}

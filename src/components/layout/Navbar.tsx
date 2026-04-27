@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
   Search,
@@ -173,8 +174,8 @@ export default function Navbar() {
 
           {/* Logo */}
           <Link href="/" className="flex items-center shrink-0" id="nav-logo">
-            <img src="/logo3.png" alt={settings?.site_name || 'Enerji Dükkanı'} className="block sm:hidden h-20 w-auto" />
-            <img src="/logo2.png" alt={settings?.site_name || 'Enerji Dükkanı'} className="hidden sm:block h-72 w-auto mix-blend-multiply" />
+            <Image src="/logo3.png" alt={settings?.site_name || 'Enerji Ambarı'} width={80} height={80} className="block sm:hidden h-20 w-auto" priority />
+            <Image src="/logo2.png" alt={settings?.site_name || 'Enerji Ambarı'} width={288} height={288} className="hidden sm:block h-72 w-auto mix-blend-multiply" priority />
           </Link>
 
           {/* Search Bar - Desktop */}

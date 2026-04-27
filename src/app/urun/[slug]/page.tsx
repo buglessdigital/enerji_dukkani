@@ -510,7 +510,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                   <div className="hidden sm:flex gap-3">
                     <button
                       onClick={() => {
-                        addToCart(product, quantity, selectedVariantObjects.length > 0 ? selectedVariantObjects : undefined)
+                        addToCart(product, quantity, selectedVariantObjects.length > 0 ? selectedVariantObjects : undefined, dealerEffectivePrice)
                         alert('Ürün sepete eklendi!')
                       }}
                       disabled={effectiveStock === 0}
@@ -521,7 +521,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                     </button>
                     <button
                       onClick={() => {
-                        addToCart(product, quantity, selectedVariantObjects.length > 0 ? selectedVariantObjects : undefined)
+                        addToCart(product, quantity, selectedVariantObjects.length > 0 ? selectedVariantObjects : undefined, dealerEffectivePrice)
                         router.push('/odeme')
                       }}
                       disabled={effectiveStock === 0}
@@ -864,9 +864,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                 const hasDiscount = p.sale_price && p.sale_price < p.price
                 return (
                   <Link key={p.id} href={`/urun/${p.slug}`} className="group bg-white rounded-2xl border border-neutral-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                    <div className="aspect-square bg-neutral-50 overflow-hidden">
+                    <div className="aspect-square bg-neutral-50 overflow-hidden relative">
                       {coverImg ? (
-                        <img src={coverImg.url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <Image src={coverImg.url} alt={p.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" sizes="(max-width: 640px) 50vw, 25vw" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-neutral-200">
                           <ImageIcon className="w-10 h-10" />
@@ -903,7 +903,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           )}
         </div>
         <button
-          onClick={() => { addToCart(product, quantity); alert('Ürün sepete eklendi!') }}
+          onClick={() => { addToCart(product, quantity, undefined, dealerEffectivePrice); alert('Ürün sepete eklendi!') }}
           disabled={product.stock_quantity === 0}
           className="flex-1 flex items-center justify-center gap-2 border-2 border-primary-600 text-primary-600 font-bold text-sm py-3 rounded-xl transition-colors active:bg-primary-50 disabled:opacity-40"
         >
@@ -911,7 +911,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           Sepete Ekle
         </button>
         <button
-          onClick={() => { addToCart(product, quantity); router.push('/odeme') }}
+          onClick={() => { addToCart(product, quantity, undefined, dealerEffectivePrice); router.push('/odeme') }}
           disabled={product.stock_quantity === 0}
           className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white font-bold text-sm py-3 rounded-xl shadow-md shadow-primary-200 transition-colors active:bg-primary-700 disabled:opacity-40"
         >

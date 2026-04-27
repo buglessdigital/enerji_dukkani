@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   Phone,
   Mail,
@@ -27,7 +28,7 @@ export default function Footer() {
     fetchSettings()
   }, [])
 
-  const siteName = settings?.site_name || 'Enerji Dükkanı'
+  const siteName = settings?.site_name || 'Enerji Ambarı'
   const phone = settings?.phone || ''
   const email = settings?.email || 'info@enerjidukkani.com'
   const address = settings?.address || 'İzmir, Türkiye'
@@ -40,8 +41,8 @@ export default function Footer() {
           {/* Column 1: Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center sm:-mt-16 sm:-mb-16">
-              <img src="/logo3.png" alt={siteName} className="block sm:hidden h-20 w-auto" />
-              <img src="/logo.png" alt={siteName} className="hidden sm:block h-72 w-auto mix-blend-screen" />
+              <Image src="/logo3.png" alt={siteName} width={80} height={80} className="block sm:hidden h-20 w-auto" />
+              <Image src="/logo.png" alt={siteName} width={288} height={288} className="hidden sm:block h-72 w-auto mix-blend-screen" />
             </Link>
             <p className="text-sm text-neutral-400 leading-relaxed">
               Güneş enerjisi sistemleri, inverterler, akü çözümleri ve enerji
@@ -231,7 +232,7 @@ export default function Footer() {
             {/* Payment Logos */}
             <div className="flex items-center gap-3">
               <span className="text-xs text-neutral-500 mr-2">Güvenli Ödeme:</span>
-              <img src="/paytr.png" alt="PayTR" className="h-7 w-auto object-contain" />
+              <Image src="/paytr.png" alt="PayTR" width={80} height={28} className="h-7 w-auto object-contain" />
             </div>
 
             {/* Copyright */}

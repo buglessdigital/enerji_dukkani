@@ -123,7 +123,7 @@ export default function DealerApplicationPage() {
                 Enerji Ailesine Katılın
               </h2>
               <p className="text-neutral-500 max-w-2xl mx-auto leading-relaxed">
-                Enerji Dükkanı'nın güçlü tedarik ağından, özel bayi fiyatlarından ve teknik destek avantajlarından faydalanmak için aşağıdaki formu doldurarak iş ortağımız olabilirsiniz.
+                Enerji Ambarı'nın güçlü tedarik ağından, özel bayi fiyatlarından ve teknik destek avantajlarından faydalanmak için aşağıdaki formu doldurarak iş ortağımız olabilirsiniz.
               </p>
             </div>
 

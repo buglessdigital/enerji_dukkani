@@ -17,11 +17,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Enerji Dükkanı - Güneş Paneli ve Enerji Sistemleri',
-    template: '%s | Enerji Dükkanı',
+    default: 'Enerji Ambarı - Güneş Paneli ve Enerji Sistemleri',
+    template: '%s | Enerji Ambarı',
   },
   description:
-    'Güneş panelleri, invertörler, akü sistemleri ve enerji çözümleri. Enerji Dükkanı ile güvenilir ve uygun fiyatlı enerji ürünlerine ulaşın.',
+    'Güneş panelleri, invertörler, akü sistemleri ve enerji çözümleri. Enerji Ambarı ile güvenilir ve uygun fiyatlı enerji ürünlerine ulaşın.',
   keywords: [
     'güneş paneli',
     'solar panel',
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     'akü',
     'şarj kontrol',
   ],
-  authors: [{ name: 'Enerji Dükkanı' }],
+  authors: [{ name: 'Enerji Ambarı' }],
   icons: {
     icon: '/logo3.png',
     apple: '/logo3.png',
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'tr_TR',
-    siteName: 'Enerji Dükkanı',
+    siteName: 'Enerji Ambarı',
   },
 }
 

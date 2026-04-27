@@ -112,7 +112,7 @@ export default function AdminClientLayout({ children }: { children: React.ReactN
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
-              <span className="block text-sm font-bold truncate">Enerji Dükkanı</span>
+              <span className="block text-sm font-bold truncate">Enerji Ambarı</span>
               <span className="block text-[10px] text-slate-400">Yönetim Paneli</span>
             </div>
           )}

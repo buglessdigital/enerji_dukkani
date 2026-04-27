@@ -94,7 +94,7 @@ export default function CartPage() {
                          {item.name}
                        </Link>
                        <p className="text-sm font-medium text-primary-600 mb-3 block">
-                          Birim Fiyat: {formatPrice(item.sale_price || item.price)}
+                          Birim Fiyat: {formatPrice(item.dealer_price ?? item.sale_price ?? item.price)}
                        </p>
                        
                        <div className="flex items-center gap-2">
@@ -113,7 +113,7 @@ export default function CartPage() {
                     <div className="hidden sm:block text-right">
                        <p className="text-[10px] text-neutral-400 font-bold uppercase mb-1">Toplam</p>
                        <p className="font-extrabold text-neutral-900 font-heading text-lg whitespace-nowrap">
-                         {formatPrice((item.sale_price || item.price) * item.quantity)}
+                         {formatPrice((item.dealer_price ?? item.sale_price ?? item.price) * item.quantity)}
                        </p>
                     </div>
 
@@ -178,7 +178,7 @@ export default function CartPage() {
                   
                   <div className="mt-6 flex flex-wrap gap-2 justify-center items-center opacity-60">
                     <span className="text-[10px] font-bold text-neutral-500 uppercase">Güvenli Ödeme:</span>
-                    <img src="/paytr.png" alt="PayTR" className="h-7 w-auto object-contain" />
+                    <Image src="/paytr.png" alt="PayTR" width={80} height={28} className="h-7 w-auto object-contain" />
                   </div>
                 </div>
               </div>

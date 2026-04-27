@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
+import Image from 'next/image'
 import { Package, Phone, Mail, Calendar, CheckCircle, Clock, FileText } from 'lucide-react'
 import type { Quote } from '@/lib/types'
 import PrintButton from './PrintButton'
@@ -28,17 +29,21 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const { id } = await params
   const supabase = createClient(supabaseUrl, supabaseKey)
 
-  const { data: quote, error } = await supabase
-    .from('quotes')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const [{ data: quote, error }, { data: settings }] = await Promise.all([
+    supabase.from('quotes').select('*').eq('id', id).single(),
+    supabase.from('site_settings').select('site_name,company_name,phone,email,address,whatsapp_number').single(),
+  ])
 
   if (error || !quote) notFound()
 
   const q = quote as Quote
   const status = statusConfig[q.status] || statusConfig.sent
   const StatusIcon = status.icon
+  const siteName = settings?.site_name || 'Enerji Ambarı'
+  const companyName = settings?.company_name || 'Enerji Ambarı Enerji Sistemleri'
+  const companyPhone = settings?.phone || settings?.whatsapp_number || ''
+  const companyEmail = settings?.email || ''
+  const companyAddress = settings?.address || ''
 
   return (
     <div className="min-h-screen bg-neutral-50 py-8 px-4">
@@ -57,9 +62,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6 text-accent-400">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                 </svg>
-                <span className="font-bold text-lg tracking-tight">Enerji Dükkanı</span>
+                <span className="font-bold text-lg tracking-tight">{siteName}</span>
               </div>
-              <p className="text-primary-200 text-sm">Enerji Sistemleri</p>
+              <p className="text-primary-200 text-sm">{companyName}</p>
             </div>
             <div className="text-right">
               <p className="text-primary-300 text-xs uppercase tracking-widest mb-1">Teklif No</p>
@@ -112,9 +117,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 key={i}
                 className="flex items-center gap-4 p-4 bg-neutral-50 rounded-xl border border-neutral-100"
               >
-                <div className="w-12 h-12 bg-white rounded-lg border border-neutral-200 overflow-hidden shrink-0 flex items-center justify-center">
+                <div className="w-12 h-12 bg-white rounded-lg border border-neutral-200 overflow-hidden shrink-0 flex items-center justify-center relative">
                   {item.image_url ? (
-                    <img src={item.image_url} alt={item.product_name} className="w-full h-full object-cover" />
+                    <Image src={item.image_url} alt={item.product_name} fill className="object-cover" sizes="48px" />
                   ) : (
                     <Package className="w-5 h-5 text-neutral-300" />
                   )}
@@ -183,11 +188,28 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         )}
 
         {/* Footer */}
-        <div className="px-8 py-5 bg-neutral-50 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-neutral-400">
-            Bu teklif bilgilendirme amaçlıdır. Fiyatlar KDV dahildir.
-          </p>
-          <p className="text-xs text-neutral-400 font-mono">{q.quote_number}</p>
+        <div className="px-8 py-5 bg-neutral-50 border-t border-neutral-100">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+            <div className="flex flex-wrap gap-4">
+              {companyPhone && (
+                <a href={`tel:${companyPhone}`} className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-primary-600 transition-colors">
+                  <Phone className="w-3.5 h-3.5" />
+                  {companyPhone}
+                </a>
+              )}
+              {companyEmail && (
+                <a href={`mailto:${companyEmail}`} className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-primary-600 transition-colors">
+                  <Mail className="w-3.5 h-3.5" />
+                  {companyEmail}
+                </a>
+              )}
+              {companyAddress && (
+                <span className="text-xs text-neutral-400">{companyAddress}</span>
+              )}
+            </div>
+            <p className="text-xs text-neutral-400 font-mono shrink-0">{q.quote_number}</p>
+          </div>
+          <p className="text-xs text-neutral-400">Bu teklif bilgilendirme amaçlıdır. Fiyatlar KDV dahildir.</p>
         </div>
       </div>
 

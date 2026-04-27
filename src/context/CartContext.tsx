@@ -13,6 +13,7 @@ export interface CartItem {
   slug: string
   price: number        // effective price (base + variant modifier)
   sale_price: number | null  // effective sale price (base sale + variant modifier)
+  dealer_price: number | null  // effective dealer price, null for non-dealers
   image_url: string
   quantity: number
   stock_quantity: number
@@ -28,7 +29,7 @@ export interface VariantSelection {
 
 interface CartContextType {
   cart: CartItem[]
-  addToCart: (product: any, quantity?: number, variants?: VariantSelection[]) => void
+  addToCart: (product: any, quantity?: number, variants?: VariantSelection[], dealerPrice?: number | null) => void
   removeFromCart: (id: string) => void
   updateQuantity: (id: string, quantity: number) => void
   clearCart: () => void
@@ -86,7 +87,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [cart, isLoaded, cartKey])
 
-  const addToCart = (product: any, quantity: number = 1, variants?: VariantSelection[]) => {
+  const addToCart = (product: any, quantity: number = 1, variants?: VariantSelection[], dealerPrice?: number | null) => {
     setCart((prev) => {
       // Build a unique id that includes variant selection
       const variantKey = variants && variants.length > 0
@@ -135,6 +136,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         slug: product.slug,
         price: effectivePrice,
         sale_price: effectiveSalePrice,
+        dealer_price: dealerPrice ?? null,
         image_url: cover || '',
         quantity: Math.min(quantity, effectiveStock || 1),
         stock_quantity: effectiveStock,
@@ -156,7 +158,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const clearCart = () => setCart([])
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0)
-  const cartTotal = cart.reduce((total, item) => total + (item.sale_price || item.price) * item.quantity, 0)
+  const cartTotal = cart.reduce((total, item) => total + (item.dealer_price ?? item.sale_price ?? item.price) * item.quantity, 0)
 
   return (
     <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount }}>
