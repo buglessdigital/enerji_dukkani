@@ -6,7 +6,7 @@ import { supabaseBrowser } from '@/lib/supabase-browser'
 interface DealerContextType {
   isDealer: boolean
   dealerDiscount: number | null  // general discount % from dealers table
-  getDealerPrice: (basePrice: number, dealerPrice: number | null) => number | null
+  getDealerPrice: (basePrice: number, dealerPrice: number | null, dealerSalePrice?: number | null) => number | null
 }
 
 const DealerContext = createContext<DealerContextType>({
@@ -51,8 +51,10 @@ export function DealerProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  function getDealerPrice(basePrice: number, dealerPrice: number | null): number | null {
+  function getDealerPrice(basePrice: number, dealerPrice: number | null, dealerSalePrice?: number | null): number | null {
     if (!isDealer) return null
+    // dealer_sale_price (indirimli bayi fiyatı) varsa önce onu kullan
+    if (dealerSalePrice != null) return dealerSalePrice
     if (dealerPrice != null) return dealerPrice
     if (dealerDiscount != null) return basePrice * (1 - dealerDiscount / 100)
     return null

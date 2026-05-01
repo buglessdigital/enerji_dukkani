@@ -258,10 +258,19 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
       ? Math.round(((effectivePrice - effectiveSalePrice) / effectivePrice) * 100)
       : null)
 
-  const dealerEffectivePrice = getDealerPrice(displayPrice, product.dealer_price != null ? product.dealer_price + totalModifier : null)
+  const dealerEffectivePrice = getDealerPrice(
+    displayPrice,
+    product.dealer_price != null ? product.dealer_price + totalModifier : null,
+    product.dealer_sale_price != null ? product.dealer_sale_price + totalModifier : null
+  )
 
-  const dealerDiscountPercent = dealerEffectivePrice != null && displayPrice > 0
-    ? Math.round(((displayPrice - dealerEffectivePrice) / displayPrice) * 100)
+  // Bayi indirimli fiyat varsa üstü çizili referans fiyat dealer_price olmalı (müşteri sale_price değil)
+  const dealerListPrice = product.dealer_sale_price != null && product.dealer_price != null
+    ? product.dealer_price + totalModifier
+    : displayPrice
+
+  const dealerDiscountPercent = dealerEffectivePrice != null && dealerListPrice > 0
+    ? Math.round(((dealerListPrice - dealerEffectivePrice) / dealerListPrice) * 100)
     : null
 
   return (
@@ -379,7 +388,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                       </span>
                       {(effectiveSalePrice != null || dealerEffectivePrice != null) && (
                         <span className="text-lg text-neutral-400 font-medium line-through">
-                          {formatPrice(dealerEffectivePrice != null ? displayPrice : effectivePrice)}
+                          {formatPrice(dealerEffectivePrice != null ? dealerListPrice : effectivePrice)}
                         </span>
                       )}
                     </div>

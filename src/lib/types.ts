@@ -32,8 +32,12 @@ export interface Product {
   price: number
   sale_price: number | null
   cost_price: number | null
+  cost_price_usd: number | null
+  cost_currency: string | null
   dealer_price: number | null
+  dealer_sale_price: number | null
   price_markup_percent: number | null
+  dealer_markup_percent: number | null
   discount_percent: number | null
   dealer_discount_percent: number | null
   stock_quantity: number

@@ -246,11 +246,15 @@ export default function CategoryDetailPage({ params }: { params: Promise<{ slug:
                           <div className="flex flex-col">
                             {(() => {
                               const basePrice = product.sale_price || product.price
-                              const dealerPrice = getDealerPrice(basePrice, product.dealer_price ?? null)
+                              const dealerPrice = getDealerPrice(basePrice, product.dealer_price ?? null, product.dealer_sale_price ?? null)
                               if (dealerPrice != null) {
+                                // Bayi indirimli fiyat varsa üstü çizili fiyat dealer_price olmalı (4830), müşteri fiyatı değil
+                                const dealerListPrice = product.dealer_sale_price != null && product.dealer_price != null
+                                  ? product.dealer_price
+                                  : basePrice
                                 return (
                                   <>
-                                    <span className="price-old">{formatPrice(basePrice)}</span>
+                                    <span className="price-old">{formatPrice(dealerListPrice)}</span>
                                     <span className="price-current leading-none text-blue-600">{formatPrice(dealerPrice)}</span>
                                     <span className="text-xs text-blue-500 font-medium">Bayi Fiyatı</span>
                                   </>
