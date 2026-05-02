@@ -19,6 +19,7 @@ export default function CheckoutPage() {
   const [whatsappNumber, setWhatsappNumber] = useState('')
   
   const [isReady, setIsReady] = useState(false)
+  const [orderSuccess, setOrderSuccess] = useState<{ orderNumber: string; total: number } | null>(null)
   const [address, setAddress] = useState({
     fullName: '', phone: '', email: '', city: '', district: '', fullAddress: ''
   })
@@ -26,6 +27,7 @@ export default function CheckoutPage() {
   const [card, setCard] = useState({
     name: '', number: '', expiry: '', cvc: ''
   })
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Auth Guard Removed (Allows Guest Checkout)
   useEffect(() => {
@@ -79,6 +81,32 @@ export default function CheckoutPage() {
 
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault()
+
+    const newErrors: Record<string, string> = {}
+    if (address.fullName.trim().length < 3) newErrors.fullName = 'Ad soyad en az 3 karakter olmalıdır.'
+    if (!/^(05\d{9}|5\d{9}|\+905\d{9})$/.test(address.phone.replace(/\s/g, ''))) newErrors.phone = 'Geçerli bir Türk telefon numarası girin (ör: 05XX XXX XX XX).'
+    if (address.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address.email)) newErrors.email = 'Geçerli bir e-posta adresi girin.'
+    if (!address.city.trim()) newErrors.city = 'İl boş olamaz.'
+    if (!address.district.trim()) newErrors.district = 'İlçe boş olamaz.'
+    if (!address.fullAddress.trim()) newErrors.fullAddress = 'Açık adres boş olamaz.'
+    if (!card.name.trim()) newErrors.cardName = 'Kart üzerindeki isim boş olamaz.'
+    if (card.number.replace(/\s/g, '').length !== 16) newErrors.cardNumber = 'Kart numarası 16 haneli olmalıdır.'
+    if (!/^\d{2}\/\d{2}$/.test(card.expiry)) {
+      newErrors.cardExpiry = 'Son kullanma tarihi MM/YY formatında olmalıdır.'
+    } else {
+      const [mm, yy] = card.expiry.split('/').map(Number)
+      const now = new Date()
+      const expYear = 2000 + yy
+      const expMonth = mm
+      if (mm < 1 || mm > 12 || expYear < now.getFullYear() || (expYear === now.getFullYear() && expMonth < now.getMonth() + 1)) {
+        newErrors.cardExpiry = 'Kartın son kullanma tarihi geçmiş.'
+      }
+    }
+    if (!/^\d{3}$/.test(card.cvc)) newErrors.cardCvc = 'CVC 3 haneli olmalıdır.'
+
+    setErrors(newErrors)
+    if (Object.keys(newErrors).length > 0) return
+
     setLoading(true)
 
     try {
@@ -149,19 +177,21 @@ export default function CheckoutPage() {
         }
       }
 
-      // 4. Sepeti Temizle ve Başarılı Sayfasına ya da Hesaba Yönlendir
+      // 4. Sepeti Temizle ve Başarı Durumunu Göster
       clearCart()
-      alert(`🎉 Ödemeniz Başarılı!\nSipariş Numaranız: ${orderNumber}\n${user ? 'Hesabım > Siparişlerim sekmesinden takip edebilirsiniz.' : 'Sipariş detayları için iletişime geçebilirsiniz.'}`)
-      
+
       if (user) {
-        router.push('/hesabim')
+        router.push('/hesabim?tab=siparisler')
       } else {
-        router.push('/')
+        setOrderSuccess({ orderNumber, total: grandTotal })
+        setLoading(false)
       }
 
     } catch (error: any) {
-      alert(error.message)
       setLoading(false)
+      // hata mesajını kullanıcıya göster (basit inline state eklenebilir, şimdilik alert kaldı)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      alert(error.message)
     }
   }
 
@@ -184,6 +214,56 @@ export default function CheckoutPage() {
     } else {
       setCard({ ...card, number: value })
     }
+  }
+
+  if (orderSuccess) {
+    return (
+      <div className="min-h-[70vh] bg-[#f8f9fa] flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 p-8 max-w-lg w-full text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-9 h-9 text-green-500" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold font-heading text-neutral-800">Ödemeniz Alındı!</h2>
+            <p className="text-neutral-500 mt-2 text-sm">Siparişiniz başarıyla oluşturuldu.</p>
+          </div>
+
+          <div className="bg-neutral-50 rounded-xl p-5 space-y-2 text-sm text-left">
+            <div className="flex justify-between">
+              <span className="text-neutral-500">Sipariş Numarası</span>
+              <span className="font-bold text-neutral-800 font-mono">{orderSuccess.orderNumber}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-neutral-500">Toplam Tutar</span>
+              <span className="font-bold text-primary-600">{formatPrice(orderSuccess.total)}</span>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 text-left">
+            <p className="font-semibold mb-1">Sipariş numaranızı not alın</p>
+            <p>Siparişinizi takip edebilmek için <span className="font-mono font-bold">{orderSuccess.orderNumber}</span> numarasını bir yere kaydedin.</p>
+          </div>
+
+          <div className="border border-primary-100 bg-primary-50 rounded-xl p-5 text-sm text-left space-y-3">
+            <p className="text-neutral-700">Siparişlerinizi kolayca takip etmek ister misiniz?</p>
+            <p className="text-neutral-500">Ücretsiz hesap oluşturarak tüm siparişlerinizi tek bir yerden görüntüleyebilirsiniz.</p>
+            <a
+              href="/hesabim?tab=register"
+              className="btn btn-primary w-full text-center block"
+            >
+              Hesap Oluştur ve Siparişleri Takip Et
+            </a>
+          </div>
+
+          <button
+            onClick={() => router.push('/')}
+            className="text-sm text-neutral-500 hover:text-neutral-700 underline underline-offset-2"
+          >
+            Ana sayfaya dön
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -214,28 +294,34 @@ export default function CheckoutPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-neutral-700">Ad Soyad *</label>
                   <input type="text" required value={address.fullName} onChange={e => setAddress({...address, fullName: e.target.value})} className="input" placeholder="Örn: Ahmet Yılmaz" />
+                  {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-neutral-700">Telefon Numarası *</label>
                   <input type="tel" required value={address.phone} onChange={e => setAddress({...address, phone: e.target.value})} className="input" placeholder="05XX XXX XX XX" />
+                  {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                 </div>
                 {!user && (
                   <div className="md:col-span-2 space-y-2">
                     <label className="text-sm font-medium text-neutral-700">E-posta Adresi <span className="text-neutral-400 font-normal">(Sipariş Takibi İçin İsteğe Bağlı)</span></label>
                     <input type="email" value={address.email} onChange={e => setAddress({...address, email: e.target.value})} className="input" placeholder="orn: ahmet@gmail.com" />
+                    {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                   </div>
                 )}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-neutral-700">İl *</label>
                   <input type="text" required value={address.city} onChange={e => setAddress({...address, city: e.target.value})} className="input" placeholder="Örn: İstanbul" />
+                  {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-neutral-700">İlçe *</label>
                   <input type="text" required value={address.district} onChange={e => setAddress({...address, district: e.target.value})} className="input" placeholder="Örn: Kadıköy" />
+                  {errors.district && <p className="text-red-500 text-sm mt-1">{errors.district}</p>}
                 </div>
                 <div className="md:col-span-2 space-y-2">
                   <label className="text-sm font-medium text-neutral-700">Açık Adres *</label>
                   <textarea required value={address.fullAddress} onChange={e => setAddress({...address, fullAddress: e.target.value})} className="input min-h-[100px] resize-y" placeholder="Mahalle, sokak, bina ve daire no..." />
+                  {errors.fullAddress && <p className="text-red-500 text-sm mt-1">{errors.fullAddress}</p>}
                 </div>
               </div>
             </div>
@@ -256,6 +342,7 @@ export default function CheckoutPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-neutral-700">Kart Üzerindeki İsim *</label>
                   <input type="text" required value={card.name} onChange={e => setCard({...card, name: e.target.value})} className="input font-mono uppercase" placeholder="AHMET YILMAZ" />
+                  {errors.cardName && <p className="text-red-500 text-sm mt-1">{errors.cardName}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-neutral-700">Kart Numarası *</label>
@@ -263,15 +350,18 @@ export default function CheckoutPage() {
                     <input type="text" required value={card.number} onChange={handleCardNumberChange} maxLength={19} className="input font-mono pl-10 tracking-widest" placeholder="0000 0000 0000 0000" />
                     <CreditCard className="w-5 h-5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   </div>
+                  {errors.cardNumber && <p className="text-red-500 text-sm mt-1">{errors.cardNumber}</p>}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-neutral-700">Son Kullanma (AA/YY) *</label>
                     <input type="text" required value={card.expiry} onChange={e => setCard({...card, expiry: e.target.value})} maxLength={5} className="input font-mono" placeholder="MM/YY" />
+                    {errors.cardExpiry && <p className="text-red-500 text-sm mt-1">{errors.cardExpiry}</p>}
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-neutral-700">CVC *</label>
                     <input type="text" required value={card.cvc} onChange={e => setCard({...card, cvc: e.target.value})} maxLength={3} className="input font-mono" placeholder="123" />
+                    {errors.cardCvc && <p className="text-red-500 text-sm mt-1">{errors.cardCvc}</p>}
                   </div>
                 </div>
               </div>

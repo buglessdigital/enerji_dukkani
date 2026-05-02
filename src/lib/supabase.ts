@@ -76,7 +76,8 @@ export async function getFeaturedProducts(): Promise<Product[]> {
     .select(`
       *,
       images:product_images(id, url, alt_text, sort_order, is_cover),
-      category:categories(id, name, slug)
+      category:categories(id, name, slug),
+      reviews:reviews(id, rating)
     `)
     .eq('is_active', true)
     .eq('is_featured', true)

@@ -6,11 +6,16 @@ import { ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Collection } from '@/lib/types'
 
-export default function CollectionCards() {
-  const [collections, setCollections] = useState<Collection[]>([])
-  const [loading, setLoading] = useState(true)
+interface CollectionCardsProps {
+  initialCollections?: Collection[]
+}
+
+export default function CollectionCards({ initialCollections = [] }: CollectionCardsProps) {
+  const [collections, setCollections] = useState<Collection[]>(initialCollections)
+  const [loading, setLoading] = useState(initialCollections.length === 0)
 
   useEffect(() => {
+    if (initialCollections.length > 0) return
     async function fetchCollections() {
       const { data, error } = await supabase
         .from('collections')

@@ -200,11 +200,16 @@ function ProductCard({ product }: { product: Product }) {
   )
 }
 
-export default function FeaturedProducts() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+interface FeaturedProductsProps {
+  initialProducts?: Product[]
+}
+
+export default function FeaturedProducts({ initialProducts = [] }: FeaturedProductsProps) {
+  const [products, setProducts] = useState<Product[]>(initialProducts)
+  const [loading, setLoading] = useState(initialProducts.length === 0)
 
   useEffect(() => {
+    if (initialProducts.length > 0) return
     async function fetchProducts() {
       const { data, error } = await supabase
         .from('products')

@@ -64,10 +64,25 @@ export default function SettingsPage() {
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>, fieldName: string) {
     if (!e.target.files || e.target.files.length === 0) return
     const file = e.target.files[0]
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif']
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif']
+    const fileExt = file.name.split('.').pop()?.toLowerCase() ?? ''
+
+    if (!allowedTypes.includes(file.type) || !allowedExts.includes(fileExt)) {
+      alert('Sadece görsel dosyaları yüklenebilir (JPG, PNG, WebP, SVG, GIF).')
+      e.target.value = ''
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Dosya boyutu 5 MB\'ı geçemez.')
+      e.target.value = ''
+      return
+    }
+
     setUploadingField(fieldName)
-    
+
     try {
-      const fileExt = file.name.split('.').pop()
       const fileName = `${fieldName}-${Date.now()}.${fileExt}`
       const filePath = `settings/${fileName}`
 

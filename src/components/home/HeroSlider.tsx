@@ -6,16 +6,22 @@ import { ChevronLeft, ChevronRight, Phone } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { HeroSlide, SiteSettings } from '@/lib/types'
 
-export default function HeroSlider() {
-  const [slides, setSlides] = useState<HeroSlide[]>([])
-  const [settings, setSettings] = useState<SiteSettings | null>(null)
+interface HeroSliderProps {
+  initialSlides?: HeroSlide[]
+  initialSettings?: SiteSettings | null
+}
+
+export default function HeroSlider({ initialSlides = [], initialSettings = null }: HeroSliderProps) {
+  const [slides, setSlides] = useState<HeroSlide[]>(initialSlides)
+  const [settings, setSettings] = useState<SiteSettings | null>(initialSettings)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isTransitioning, setIsTransitioning] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(initialSlides.length === 0)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
 
-  // Fetch slides and settings from Supabase
+  // Only fetch if no initial data was provided
   useEffect(() => {
+    if (initialSlides.length > 0) return
     async function fetchData() {
       const [slidesRes, settingsRes] = await Promise.all([
         supabase.from('hero_slides').select('*').eq('is_active', true).order('sort_order', { ascending: true }),

@@ -1,10 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { supabaseBrowser as supabase } from '@/lib/supabase-browser'
-import { supabaseBrowser } from '@/lib/supabase-browser'
+import { usePathname } from 'next/navigation'
 import NotificationBell from '@/components/admin/NotificationBell'
 import {
   LayoutDashboard,
@@ -25,6 +23,7 @@ import {
   LogOut,
   ClipboardList,
   MessageSquare,
+  FileDown,
 } from 'lucide-react'
 
 const navItems = [
@@ -39,50 +38,14 @@ const navItems = [
   { href: '/admin/yorumlar', label: 'Yorumlar', icon: Star },
   { href: '/admin/mesajlar', label: 'Mesajlar', icon: MessageSquare },
   { href: '/admin/sayfalar', label: 'Sayfalar', icon: FileText },
+  { href: '/admin/urun-listesi', label: 'Ürün Listesi (PDF)', icon: FileDown },
   { href: '/admin/ayarlar', label: 'Ayarlar', icon: Settings },
 ]
 
 export default function AdminClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
-  
-  useEffect(() => {
-    async function checkAdmin() {
-      // Session check is already handled server-side by proxy.ts.
-      // Here we only verify the admin role via a DB query.
-      const { data: { session } } = await supabaseBrowser.auth.getSession()
-      if (!session) return // proxy should have redirected, fallback guard
-
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single()
-
-      if (data?.role !== 'admin') {
-        window.location.href = '/'
-        return
-      }
-
-      setIsAdmin(true)
-    }
-
-    checkAdmin()
-  }, [pathname])
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-[#f0f2f5] flex items-center justify-center">
-        <div className="text-center animate-pulse">
-           <Zap className="w-12 h-12 text-primary-500 mx-auto mb-4" />
-           <p className="text-neutral-500 font-medium">Yetki Kontrolü Yapılıyor...</p>
-        </div>
-      </div>
-    )
-  }
 
   const isActive = (href: string) => {
     if (href === '/admin') return pathname === '/admin'

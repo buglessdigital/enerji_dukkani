@@ -19,7 +19,7 @@ const EMPTY_ADDRESS = {
   address_line: '',
   zip_code: '',
   is_default: false,
-  address_type: 'home' as 'home' | 'work' | 'other',
+  address_type: 'shipping' as 'shipping' | 'billing' | 'both',
 }
 
 function AccountPageInner() {
@@ -168,7 +168,7 @@ function AccountPageInner() {
       address_line: address.address_line || '',
       zip_code: address.zip_code || '',
       is_default: address.is_default || false,
-      address_type: address.address_type || 'home',
+      address_type: address.address_type || 'shipping',
     })
     setAddressError('')
     setAddressModal(true)
@@ -421,7 +421,7 @@ function AccountPageInner() {
                             <div className="flex items-start justify-between gap-2 mb-2">
                               <h3 className="font-bold text-neutral-900">{address.label}</h3>
                               <span className="text-xs font-medium text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded-full shrink-0">
-                                {address.address_type === 'home' ? 'Ev' : address.address_type === 'work' ? 'İş' : 'Diğer'}
+                                {address.address_type === 'shipping' ? 'Teslimat' : address.address_type === 'billing' ? 'Fatura' : 'Her İkisi'}
                               </span>
                             </div>
                             <p className="text-sm font-medium text-neutral-700">{address.full_name}</p>
@@ -549,9 +549,9 @@ function AccountPageInner() {
                       onChange={e => setAddressForm(f => ({ ...f, address_type: e.target.value as any }))}
                       className="input"
                     >
-                      <option value="home">Ev</option>
-                      <option value="work">İş</option>
-                      <option value="other">Diğer</option>
+                      <option value="shipping">Teslimat</option>
+                      <option value="billing">Fatura</option>
+                      <option value="both">Her İkisi</option>
                     </select>
                   </div>
                 </div>

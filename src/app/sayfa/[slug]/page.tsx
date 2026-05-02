@@ -8,6 +8,7 @@ import Footer from '@/components/layout/Footer'
 import WhatsAppButton from '@/components/common/WhatsAppButton'
 import { supabase } from '@/lib/supabase'
 import type { StaticPage } from '@/lib/types'
+import { sanitizeHtml } from '@/lib/sanitize'
 
 export default function StaticPageDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
@@ -92,7 +93,7 @@ export default function StaticPageDetail({ params }: { params: Promise<{ slug: s
             ) : (
               <div 
                 className="prose prose-neutral prose-primary max-w-none prose-headings:font-heading prose-headings:font-bold prose-p:text-neutral-600 prose-p:leading-relaxed prose-a:text-primary-600 prose-li:text-neutral-600"
-                dangerouslySetInnerHTML={{ __html: page.content || '<p>Bu sayfanın içeriği henüz girilmemiştir.</p>' }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.content || '<p>Bu sayfanın içeriği henüz girilmemiştir.</p>') }}
               />
             )}
           </div>

@@ -86,44 +86,42 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function fetchDashboardData() {
-      try {
-        // Fetch stats in parallel
-        const [
-          revenueRes,
-          pendingOrdersRes,
-          customersRes,
-          lowStockRes,
-          productsRes,
-          reviewsRes,
-          dealerAppsRes,
-          ordersRes,
-        ] = await Promise.all([
-          supabase.from('orders').select('total').eq('payment_status', 'paid'),
-          supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['pending', 'processing']),
-          supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'customer'),
-          supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true).lte('stock_quantity', 5),
-          supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true),
-          supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-          supabase.from('dealer_applications').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-          supabase.from('orders').select('id, order_number, total, status, payment_method, created_at, user:profiles(full_name, email)').order('created_at', { ascending: false }).limit(10),
-        ])
+      const [
+        revenueRes,
+        pendingOrdersRes,
+        customersRes,
+        lowStockRes,
+        productsRes,
+        reviewsRes,
+        dealerAppsRes,
+        ordersRes,
+      ] = await Promise.allSettled([
+        supabase.from('orders').select('total').eq('payment_status', 'paid'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['pending', 'processing']),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'customer'),
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true).lte('stock_quantity', 5),
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('dealer_applications').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('orders').select('id, order_number, total, status, payment_method, created_at, user:profiles(full_name, email)').order('created_at', { ascending: false }).limit(10),
+      ])
 
-        const revenue = revenueRes.data?.reduce((sum, o) => sum + (o.total || 0), 0) || 0
+      const revenue =
+        revenueRes.status === 'fulfilled'
+          ? revenueRes.value.data?.reduce((sum, o) => sum + (o.total || 0), 0) ?? 0
+          : 0
 
-        setStats({
-          totalRevenue: revenue,
-          pendingOrders: pendingOrdersRes.count ?? 0,
-          totalCustomers: customersRes.count ?? 0,
-          lowStockCount: lowStockRes.count ?? 0,
-          totalProducts: productsRes.count ?? 0,
-          pendingReviews: reviewsRes.count ?? 0,
-          pendingDealerApps: dealerAppsRes.count ?? 0,
-        })
+      setStats({
+        totalRevenue: revenue,
+        pendingOrders: pendingOrdersRes.status === 'fulfilled' ? (pendingOrdersRes.value.count ?? 0) : 0,
+        totalCustomers: customersRes.status === 'fulfilled' ? (customersRes.value.count ?? 0) : 0,
+        lowStockCount: lowStockRes.status === 'fulfilled' ? (lowStockRes.value.count ?? 0) : 0,
+        totalProducts: productsRes.status === 'fulfilled' ? (productsRes.value.count ?? 0) : 0,
+        pendingReviews: reviewsRes.status === 'fulfilled' ? (reviewsRes.value.count ?? 0) : 0,
+        pendingDealerApps: dealerAppsRes.status === 'fulfilled' ? (dealerAppsRes.value.count ?? 0) : 0,
+      })
 
-        setRecentOrders((ordersRes.data as any) || [])
-      } catch (error) {
-        console.error('Dashboard fetch error:', error)
-      }
+      setRecentOrders(ordersRes.status === 'fulfilled' ? ((ordersRes.value.data as any) ?? []) : [])
       setLoading(false)
     }
     fetchDashboardData()

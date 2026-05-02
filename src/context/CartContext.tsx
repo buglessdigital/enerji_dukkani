@@ -50,31 +50,71 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // Auth değişikliklerini dinle — kullanıcıya özel sepeti yükle/temizle
   useEffect(() => {
-    async function init() {
-      const { data: { session } } = await supabaseBrowser.auth.getSession()
-      const key = getCartKey(session?.user?.id ?? null)
+    async function loadCartWithDealerPrices(userId: string | null) {
+      const key = getCartKey(userId)
       setCartKey(key)
+
+      let items: CartItem[] = []
       try {
         const saved = localStorage.getItem(key)
-        setCart(saved ? JSON.parse(saved) : [])
+        items = saved ? JSON.parse(saved) : []
       } catch {
-        setCart([])
+        items = []
       }
+
+      // Bayi fiyatlarını yeniden hesapla
+      if (userId && items.length > 0) {
+        const { data: profile } = await supabaseBrowser
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single()
+
+        if (profile?.role === 'dealer') {
+          const { data: dealer } = await supabaseBrowser
+            .from('dealers')
+            .select('discount_rate')
+            .eq('user_id', userId)
+            .eq('is_active', true)
+            .single()
+
+          const productIds = [...new Set(items.map(i => i.product_id))]
+          const { data: products } = await supabaseBrowser
+            .from('products')
+            .select('id, price, dealer_price, dealer_sale_price')
+            .in('id', productIds)
+
+          const productMap = new Map(products?.map(p => [p.id, p]) ?? [])
+
+          items = items.map(item => {
+            const p = productMap.get(item.product_id)
+            if (!p) return item
+            let dp: number | null = null
+            if (p.dealer_sale_price != null) dp = p.dealer_sale_price
+            else if (p.dealer_price != null) dp = p.dealer_price
+            else if (dealer?.discount_rate != null) dp = item.price * (1 - dealer.discount_rate / 100)
+            return { ...item, dealer_price: dp }
+          })
+        } else {
+          // Bayi değil — dealer_price sıfırla
+          items = items.map(item => ({ ...item, dealer_price: null }))
+        }
+      } else {
+        // Giriş yapılmamış — dealer_price sıfırla
+        items = items.map(item => ({ ...item, dealer_price: null }))
+      }
+
+      setCart(items)
       setIsLoaded(true)
     }
-    init()
+
+    supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
+      loadCartWithDealerPrices(session?.user?.id ?? null)
+    })
 
     const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
-      const key = getCartKey(session?.user?.id ?? null)
-      setCartKey(key)
       setIsLoaded(false)
-      try {
-        const saved = localStorage.getItem(key)
-        setCart(saved ? JSON.parse(saved) : [])
-      } catch {
-        setCart([])
-      }
-      setIsLoaded(true)
+      loadCartWithDealerPrices(session?.user?.id ?? null)
     })
 
     return () => subscription.unsubscribe()

@@ -7,6 +7,7 @@ import WhatsAppButton from '@/components/common/WhatsAppButton'
 import { MapPin, Phone, Mail, Clock, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { SiteSettings } from '@/lib/types'
+import { sanitizeHtml, sanitizeMapEmbed } from '@/lib/sanitize'
 
 export default function ContactPage() {
   const [settings, setSettings] = useState<SiteSettings | null>(null)
@@ -21,6 +22,7 @@ export default function ContactPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     async function fetchSettings() {
@@ -50,6 +52,14 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const newErrors: Record<string, string> = {}
+    if (!formData.name.trim()) newErrors.name = 'Ad soyad boş olamaz.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Geçerli bir e-posta adresi girin.'
+    if (formData.message.trim().length < 10) newErrors.message = 'Mesaj en az 10 karakter olmalıdır.'
+    setErrors(newErrors)
+    if (Object.keys(newErrors).length > 0) return
+
     setIsSubmitting(true)
     setSubmitStatus(null)
 
@@ -122,7 +132,7 @@ export default function ContactPage() {
                 {page?.content ? (
                   <div
                     className="prose prose-sm prose-neutral mt-4 text-neutral-600"
-                    dangerouslySetInnerHTML={{ __html: page.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.content) }}
                   />
                 ) : (
                   <p className="text-neutral-500 mt-2 text-sm">
@@ -221,7 +231,7 @@ export default function ContactPage() {
                 <div className="bg-white p-3 rounded-2xl shadow-sm border border-neutral-100 overflow-hidden h-[400px]">
                   <div
                     className="w-full h-full rounded-xl overflow-hidden [&>iframe]:w-full [&>iframe]:h-full"
-                    dangerouslySetInnerHTML={{ __html: mapEmbed }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeMapEmbed(mapEmbed) }}
                   />
                 </div>
               ) : !loading ? (
@@ -261,6 +271,7 @@ export default function ContactPage() {
                       <div className="space-y-1.5">
                         <label htmlFor="contact-name" className="text-sm font-medium text-neutral-700">Ad Soyad</label>
                         <input type="text" id="contact-name" name="name" value={formData.name} onChange={handleChange} className="input" placeholder="Adınız ve soyadınız" required />
+                        {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
                       </div>
                       <div className="space-y-1.5">
                         <label htmlFor="contact-phone" className="text-sm font-medium text-neutral-700">Telefon Numarası</label>
@@ -271,6 +282,7 @@ export default function ContactPage() {
                     <div className="space-y-1.5">
                       <label htmlFor="contact-email" className="text-sm font-medium text-neutral-700">E-Posta Adresi</label>
                       <input type="email" id="contact-email" name="email" value={formData.email} onChange={handleChange} className="input" placeholder="ornek@sirket.com" required />
+                      {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                     </div>
 
                     <div className="space-y-1.5">
@@ -281,6 +293,7 @@ export default function ContactPage() {
                     <div className="space-y-1.5">
                       <label htmlFor="contact-message" className="text-sm font-medium text-neutral-700">Mesajınız</label>
                       <textarea id="contact-message" name="message" value={formData.message} onChange={handleChange} rows={4} className="input resize-y" placeholder="Lütfen mesajınızı detaylıca yazın..." required></textarea>
+                      {errors.message && <p className="text-red-500 text-sm mt-1">{errors.message}</p>}
                     </div>
 
                     <button type="submit" disabled={isSubmitting} className="btn btn-primary w-full sm:w-auto mt-2">

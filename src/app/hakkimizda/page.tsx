@@ -7,6 +7,7 @@ import WhatsAppButton from '@/components/common/WhatsAppButton'
 import { Target, Lightbulb, Users, Award, Shield } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { StaticPage, PageValue, PageStat } from '@/lib/types'
+import { sanitizeHtml } from '@/lib/sanitize'
 
 // Icon mapping for values from Supabase
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -122,7 +123,7 @@ export default function AboutPage() {
                   </h2>
                   <div
                     className="prose prose-neutral max-w-none text-neutral-600 leading-relaxed space-y-4"
-                    dangerouslySetInnerHTML={{ __html: content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
                   />
                 </div>
 
