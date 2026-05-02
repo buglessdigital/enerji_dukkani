@@ -22,7 +22,7 @@ function formatPrice(price: number) {
 function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart()
   const { isFavorite, toggleFavorite } = useFavorites()
-  const { getDealerPrice } = useDealer()
+  const { getDealerPrice, getDiscountBadge } = useDealer()
   const [isHovered, setIsHovered] = useState(false)
   
   const isFav = isFavorite(product.id)
@@ -31,11 +31,8 @@ function ProductCard({ product }: { product: Product }) {
   const coverImage = product.images?.find(img => img.is_cover) || product.images?.[0]
   const imageUrl = coverImage?.url
 
-  // Calculate discount percent if not set but sale_price exists
-  const discountPercent = product.discount_percent || 
-    (product.sale_price && product.price > 0 
-      ? Math.round(((product.price - product.sale_price) / product.price) * 100) 
-      : null)
+  // Calculate discount percent
+  const discountPercent = getDiscountBadge(product)
 
   return (
     <div

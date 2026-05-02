@@ -16,7 +16,7 @@ import SortDropdown from '@/components/common/SortDropdown'
 export default function AllCategoriesPage() {
   const { addToCart } = useCart()
   const { isFavorite, toggleFavorite } = useFavorites()
-  const { getDealerPrice, isDealer } = useDealer()
+  const { getDealerPrice, isDealer, getDiscountBadge } = useDealer()
   const [products, setProducts] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -188,7 +188,7 @@ export default function AllCategoriesPage() {
                 <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 xl:gap-6">
                   {sortedProducts.map(product => {
                     const coverImg = product.images?.find((img:any) => img.is_cover) || product.images?.[0]
-                    const discount = product.sale_price && product.price > 0 ? Math.round(((product.price - product.sale_price) / product.price) * 100) : null
+                    const discount = getDiscountBadge(product)
                     
                     return (
                       <div key={product.id} className="card group relative flex flex-col h-full hover:shadow-lg transition-shadow">

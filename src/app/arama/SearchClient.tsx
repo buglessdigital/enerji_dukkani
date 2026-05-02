@@ -11,12 +11,14 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import WhatsAppButton from '@/components/common/WhatsAppButton'
 import SortDropdown from '@/components/common/SortDropdown'
+import { useDealer } from '@/context/DealerContext'
 
 function SearchResults() {
   const searchParams = useSearchParams()
   const query = searchParams.get('q') || ''
 
   const { addToCart } = useCart()
+  const { getDiscountBadge } = useDealer()
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
@@ -155,7 +157,7 @@ function SearchResults() {
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 xl:gap-6">
               {paginatedProducts.map(product => {
                 const coverImg = product.images?.find((img:any) => img.is_cover) || product.images?.[0]
-                const discount = product.sale_price && product.price > 0 ? Math.round(((product.price - product.sale_price) / product.price) * 100) : null
+                const discount = getDiscountBadge(product)
 
                 return (
                   <div key={product.id} className="card group relative flex flex-col h-full hover:shadow-lg transition-shadow">

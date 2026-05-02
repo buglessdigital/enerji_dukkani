@@ -78,8 +78,22 @@ export default function AddProductPage() {
       }
       setForm(prev => {
         const newForm = { ...prev, cost_price: tl.toString() }
-        if (priceMargin !== '') newForm.price = (tl * (1 + parseFloat(priceMargin) / 100)).toFixed(2)
-        if (dealerMargin !== '') newForm.dealer_price = (tl * (1 + parseFloat(dealerMargin) / 100)).toFixed(2)
+        if (priceMargin !== '') {
+          const newPrice = (tl * (1 + parseFloat(priceMargin) / 100)).toFixed(2)
+          newForm.price = newPrice
+          const discount = parseFloat(prev.discount_percent)
+          if (!isNaN(discount) && parseFloat(newPrice) > 0) {
+            newForm.sale_price = (parseFloat(newPrice) * (1 - discount / 100)).toFixed(2)
+          }
+        }
+        if (dealerMargin !== '') {
+          const newDealerPrice = (tl * (1 + parseFloat(dealerMargin) / 100)).toFixed(2)
+          newForm.dealer_price = newDealerPrice
+          const dealerDiscount = parseFloat(prev.dealer_discount_percent)
+          if (!isNaN(dealerDiscount) && parseFloat(newDealerPrice) > 0) {
+             newForm.dealer_sale_price = (parseFloat(newDealerPrice) * (1 - dealerDiscount / 100)).toFixed(2)
+          }
+        }
         return newForm
       })
     } else {
@@ -91,8 +105,22 @@ export default function AddProductPage() {
       }
       setForm(prev => {
         const newForm = { ...prev, cost_price: rawValue }
-        if (priceMargin !== '') newForm.price = (tl * (1 + parseFloat(priceMargin) / 100)).toFixed(2)
-        if (dealerMargin !== '') newForm.dealer_price = (tl * (1 + parseFloat(dealerMargin) / 100)).toFixed(2)
+        if (priceMargin !== '') {
+          const newPrice = (tl * (1 + parseFloat(priceMargin) / 100)).toFixed(2)
+          newForm.price = newPrice
+          const discount = parseFloat(prev.discount_percent)
+          if (!isNaN(discount) && parseFloat(newPrice) > 0) {
+            newForm.sale_price = (parseFloat(newPrice) * (1 - discount / 100)).toFixed(2)
+          }
+        }
+        if (dealerMargin !== '') {
+          const newDealerPrice = (tl * (1 + parseFloat(dealerMargin) / 100)).toFixed(2)
+          newForm.dealer_price = newDealerPrice
+          const dealerDiscount = parseFloat(prev.dealer_discount_percent)
+          if (!isNaN(dealerDiscount) && parseFloat(newDealerPrice) > 0) {
+             newForm.dealer_sale_price = (parseFloat(newDealerPrice) * (1 - dealerDiscount / 100)).toFixed(2)
+          }
+        }
         return newForm
       })
     }
@@ -103,16 +131,31 @@ export default function AddProductPage() {
     const cost = parseFloat(form.cost_price) || 0
     const margin = parseFloat(val)
     if (!isNaN(margin) && cost > 0) {
-      setForm(p => ({ ...p, price: (cost * (1 + margin / 100)).toFixed(2) }))
+      setForm(p => {
+        const newForm = { ...p, price: (cost * (1 + margin / 100)).toFixed(2) }
+        const discount = parseFloat(p.discount_percent)
+        if (!isNaN(discount) && parseFloat(newForm.price) > 0) {
+          newForm.sale_price = (parseFloat(newForm.price) * (1 - discount / 100)).toFixed(2)
+        }
+        return newForm
+      })
     }
   }
 
   function handlePriceChange(val: string) {
-    setForm(p => ({ ...p, price: val }))
     const cost = parseFloat(form.cost_price) || 0
     const price = parseFloat(val)
     if (!isNaN(price) && cost > 0) setPriceMargin(((price - cost) / cost * 100).toFixed(2))
     else setPriceMargin('')
+    
+    setForm(p => {
+      const newForm = { ...p, price: val }
+      const discount = parseFloat(p.discount_percent)
+      if (!isNaN(discount) && price > 0) {
+        newForm.sale_price = (price * (1 - discount / 100)).toFixed(2)
+      }
+      return newForm
+    })
   }
 
   function handleDealerMarginChange(val: string) {
@@ -120,16 +163,31 @@ export default function AddProductPage() {
     const cost = parseFloat(form.cost_price) || 0
     const margin = parseFloat(val)
     if (!isNaN(margin) && cost > 0) {
-      setForm(p => ({ ...p, dealer_price: (cost * (1 + margin / 100)).toFixed(2) }))
+      setForm(p => {
+        const newForm = { ...p, dealer_price: (cost * (1 + margin / 100)).toFixed(2) }
+        const dealerDiscount = parseFloat(p.dealer_discount_percent)
+        if (!isNaN(dealerDiscount) && parseFloat(newForm.dealer_price) > 0) {
+          newForm.dealer_sale_price = (parseFloat(newForm.dealer_price) * (1 - dealerDiscount / 100)).toFixed(2)
+        }
+        return newForm
+      })
     }
   }
 
   function handleDealerPriceChange(val: string) {
-    setForm(p => ({ ...p, dealer_price: val }))
     const cost = parseFloat(form.cost_price) || 0
     const price = parseFloat(val)
     if (!isNaN(price) && cost > 0) setDealerMargin(((price - cost) / cost * 100).toFixed(2))
     else setDealerMargin('')
+    
+    setForm(p => {
+      const newForm = { ...p, dealer_price: val }
+      const dealerDiscount = parseFloat(p.dealer_discount_percent)
+      if (!isNaN(dealerDiscount) && price > 0) {
+        newForm.dealer_sale_price = (price * (1 - dealerDiscount / 100)).toFixed(2)
+      }
+      return newForm
+    })
   }
 
   function handleDiscountPercentChange(val: string) {

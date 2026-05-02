@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Montserrat, Inter } from 'next/font/google'
 import './globals.css'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 const montserrat = Montserrat({
   subsets: ['latin', 'latin-ext'],
@@ -46,15 +48,42 @@ import { CartProvider } from '@/context/CartContext'
 import { FavoritesProvider } from '@/context/FavoritesContext'
 import { DealerProvider } from '@/context/DealerContext'
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+      },
+    }
+  )
+
+  let initialIsDealer = false
+  let initialDealerDiscount: number | null = null
+
+  const { data: { session } } = await supabase.auth.getSession()
+  
+  if (session?.user) {
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single()
+    if (profile?.role === 'dealer') {
+      const { data: dealer } = await supabase.from('dealers').select('discount_rate').eq('user_id', session.user.id).eq('is_active', true).single()
+      initialIsDealer = true
+      initialDealerDiscount = dealer?.discount_rate ?? null
+    }
+  }
+
   return (
     <html lang="tr" className={`${montserrat.variable} ${inter.variable}`}>
       <body className="min-h-screen bg-neutral-50 text-neutral-800 antialiased">
-        <DealerProvider>
+        <DealerProvider initialIsDealer={initialIsDealer} initialDealerDiscount={initialDealerDiscount}>
           <FavoritesProvider>
             <CartProvider>
               {children}

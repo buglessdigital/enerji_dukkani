@@ -7,46 +7,61 @@ interface DealerContextType {
   isDealer: boolean
   dealerDiscount: number | null  // general discount % from dealers table
   getDealerPrice: (basePrice: number, dealerPrice: number | null, dealerSalePrice?: number | null) => number | null
+  getDiscountBadge: (product: any) => number | null
 }
 
 const DealerContext = createContext<DealerContextType>({
   isDealer: false,
   dealerDiscount: null,
   getDealerPrice: () => null,
+  getDiscountBadge: () => null,
 })
 
-export function DealerProvider({ children }: { children: ReactNode }) {
-  const [isDealer, setIsDealer] = useState(false)
-  const [dealerDiscount, setDealerDiscount] = useState<number | null>(null)
+interface DealerProviderProps {
+  children: ReactNode
+  initialIsDealer?: boolean
+  initialDealerDiscount?: number | null
+}
+
+export function DealerProvider({ children, initialIsDealer = false, initialDealerDiscount = null }: DealerProviderProps) {
+  const [isDealer, setIsDealer] = useState(initialIsDealer)
+  const [dealerDiscount, setDealerDiscount] = useState<number | null>(initialDealerDiscount)
 
   useEffect(() => {
-    async function init() {
-      const { data: { session } } = await supabaseBrowser.auth.getSession()
-      if (!session?.user) return
-
+    // userId parametresini dışarıdan alarak race condition'ı engelliyoruz.
+    // Artık onAuthStateChange'den gelen session doğrudan kullanılıyor,
+    // içeride getSession() tekrar çağrılmıyor.
+    async function loadDealer(userId: string) {
       const { data: profile } = await supabaseBrowser
         .from('profiles')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('id', userId)
         .single()
 
       if (profile?.role === 'dealer') {
-        setIsDealer(true)
         const { data: dealer } = await supabaseBrowser
           .from('dealers')
           .select('discount_rate')
-          .eq('user_id', session.user.id)
+          .eq('user_id', userId)
           .eq('is_active', true)
           .single()
-        if (dealer) setDealerDiscount(dealer.discount_rate)
+        setIsDealer(true)
+        setDealerDiscount(dealer?.discount_rate ?? null)
+      } else {
+        setIsDealer(false)
+        setDealerDiscount(null)
       }
     }
-    init()
 
-    const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange(() => {
-      setIsDealer(false)
-      setDealerDiscount(null)
-      init()
+    // Sonraki auth değişikliklerini (giriş/çıkış/token yenileme) dinle.
+    // onAuthStateChange'den gelen session'ı doğrudan kullan.
+    const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        loadDealer(session.user.id)
+      } else {
+        setIsDealer(false)
+        setDealerDiscount(null)
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -60,8 +75,28 @@ export function DealerProvider({ children }: { children: ReactNode }) {
     return null
   }
 
+  function getDiscountBadge(product: any): number | null {
+    let discountPercent = product.discount_percent || null
+    if (isDealer) {
+      if (product.dealer_discount_percent != null) {
+        discountPercent = product.dealer_discount_percent
+      } else if (product.dealer_sale_price != null && product.dealer_price != null && product.dealer_price > 0) {
+        discountPercent = Math.round(((product.dealer_price - product.dealer_sale_price) / product.dealer_price) * 100)
+      } else if (dealerDiscount != null) {
+        discountPercent = dealerDiscount // Genel bayi iskontosu
+      } else {
+        discountPercent = null // Bayiye özel bir iskonto yok
+      }
+    } else {
+      if (!discountPercent && product.sale_price && product.price > 0) {
+        discountPercent = Math.round(((product.price - product.sale_price) / product.price) * 100)
+      }
+    }
+    return discountPercent > 0 ? discountPercent : null
+  }
+
   return (
-    <DealerContext.Provider value={{ isDealer, dealerDiscount, getDealerPrice }}>
+    <DealerContext.Provider value={{ isDealer, dealerDiscount, getDealerPrice, getDiscountBadge }}>
       {children}
     </DealerContext.Provider>
   )

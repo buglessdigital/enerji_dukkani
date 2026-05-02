@@ -42,7 +42,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const [siteSettings, setSiteSettings] = useState<Partial<SiteSettings> | null>(null)
   const [authUser, setAuthUser] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
-  const { getDealerPrice, isDealer, dealerDiscount } = useDealer()
+  const { getDealerPrice, isDealer, getDiscountBadge } = useDealer()
   const { isFavorite: checkIsFavorite, toggleFavorite } = useFavorites()
   const [reviewRating, setReviewRating] = useState(0)
   const [reviewHover, setReviewHover] = useState(0)
@@ -255,10 +255,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
   const images = product.images || []
   const activeImg = images[activeImage]
-  const discountPercent = product.discount_percent ||
-    (effectiveSalePrice != null && effectivePrice > 0
-      ? Math.round(((effectivePrice - effectiveSalePrice) / effectivePrice) * 100)
-      : null)
+  const discountPercent = getDiscountBadge({
+    ...product,
+    price: effectivePrice,
+    sale_price: effectiveSalePrice,
+    dealer_price: product.dealer_price != null ? product.dealer_price + totalModifier : null,
+    dealer_sale_price: product.dealer_sale_price != null ? product.dealer_sale_price + totalModifier : null,
+  })
 
   const dealerEffectivePrice = getDealerPrice(
     displayPrice,
@@ -266,14 +269,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
     product.dealer_sale_price != null ? product.dealer_sale_price + totalModifier : null
   )
 
-  // Bayi indirimli fiyat varsa üstü çizili referans fiyat dealer_price olmalı (müşteri sale_price değil)
   const dealerListPrice = product.dealer_sale_price != null && product.dealer_price != null
     ? product.dealer_price + totalModifier
     : displayPrice
-
-  const dealerDiscountPercent = dealerEffectivePrice != null && dealerListPrice > 0
-    ? Math.round(((dealerListPrice - dealerEffectivePrice) / dealerListPrice) * 100)
-    : null
 
   return (
     <>
@@ -395,14 +393,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                       )}
                     </div>
                     {/* Discount Badge */}
-                    {dealerDiscountPercent && dealerDiscountPercent > 0 ? (
+                    {isDealer && product.dealer_sale_price != null ? (
                       <div className="bg-blue-100 text-blue-700 font-bold text-xs px-3 py-1.5 rounded-lg border border-blue-200">
-                        Bayi İndirimi %{dealerDiscountPercent}
+                        Bayi Özel
                       </div>
                     ) : discountPercent && discountPercent > 0 ? (
-                      <div className="bg-accent-100 text-accent-700 font-bold text-xs px-3 py-1.5 rounded-lg border border-accent-200">
-                        %{discountPercent} İndirim
-                      </div>
+                      <span className="bg-accent-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
+                        %{discountPercent} İNDİRİM
+                      </span>
                     ) : null}
                   </div>
                   {dealerEffectivePrice != null && (
@@ -909,9 +907,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           <span className="text-base font-extrabold text-primary-700 font-heading leading-tight">
             {formatPrice(dealerEffectivePrice ?? displayPrice)}
           </span>
-          {dealerEffectivePrice != null && (
-            <span className="text-[10px] text-blue-600 font-semibold">%{dealerDiscountPercent} indirim</span>
-          )}
+          {dealerEffectivePrice != null && isDealer && product.dealer_sale_price != null ? (
+            <span className="text-[10px] text-blue-600 font-semibold">Bayi Özel</span>
+          ) : discountPercent && discountPercent > 0 ? (
+            <span className="text-[10px] text-blue-600 font-semibold">%{discountPercent} indirim</span>
+          ) : null}
         </div>
         <button
           onClick={() => { addToCart(product, quantity, undefined, dealerEffectivePrice); alert('Ürün sepete eklendi!') }}
